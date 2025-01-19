@@ -15,12 +15,10 @@ let package = Package(
             targets: ["LumoKit"]),
     ],
     dependencies: [
-        // PicoDocs dependency
         .package(
             url: "https://github.com/PicoMLX/PicoDocs.git",
             branch: "main"
         ),
-        // VecturaKit dependency
         .package(
             url: "https://github.com/rryam/VecturaKit.git",
             branch: "main"
