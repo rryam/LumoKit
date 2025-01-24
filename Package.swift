@@ -16,7 +16,7 @@ let package = Package(
     ],
     dependencies: [
         .package(
-            url: "https://github.com/PicoMLX/PicoDocs.git",
+            url: "https://github.com/rudrankriyam/PicoDocs.git",
             branch: "main"
         ),
         .package(
