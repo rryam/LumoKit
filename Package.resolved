@@ -1,5 +1,5 @@
 {
-  "originHash" : "b3f438cc55067e4783b1d56d61f14d40df1e0ef231e2b144799e4f855edd973f",
+  "originHash" : "c7c77cbf6162782fddd2f09c3196caedbd1fd1efbda26b88f4be70790974d1f6",
   "pins" : [
     {
       "identity" : "jinja",
@@ -15,7 +15,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rudrankriyam/PicoDocs.git",
       "state" : {
-        "branch" : "main",
+        "branch" : "HEAD",
         "revision" : "3b1c0823b8d471fcdc9fa616fcc7991438d302a7"
       }
     },
@@ -87,7 +87,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rryam/VecturaKit.git",
       "state" : {
-        "branch" : "main",
+        "branch" : "HEAD",
         "revision" : "5910dc95cbfdddc44189ca3437f4519b631bf274"
       }
     }
