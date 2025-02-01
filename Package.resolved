@@ -1,13 +1,40 @@
 {
-  "originHash" : "c7c77cbf6162782fddd2f09c3196caedbd1fd1efbda26b88f4be70790974d1f6",
+  "originHash" : "b3f438cc55067e4783b1d56d61f14d40df1e0ef231e2b144799e4f855edd973f",
   "pins" : [
+    {
+      "identity" : "gzipswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/1024jp/GzipSwift",
+      "state" : {
+        "revision" : "731037f6cc2be2ec01562f6597c1d0aa3fe6fd05",
+        "version" : "6.0.1"
+      }
+    },
     {
       "identity" : "jinja",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/maiqingqiang/Jinja",
+      "location" : "https://github.com/johnmai-dev/Jinja",
       "state" : {
         "revision" : "9c0bbbc7f553932661fc791d2c5664311af09583",
         "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "mlx-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ml-explore/mlx-swift",
+      "state" : {
+        "revision" : "70dbb62128a5a1471a5ab80363430adb33470cab",
+        "version" : "0.21.2"
+      }
+    },
+    {
+      "identity" : "mlx-swift-examples",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ml-explore/mlx-swift-examples/",
+      "state" : {
+        "branch" : "main",
+        "revision" : "06dc7ff29a1061319d852cced31a00503c566c46"
       }
     },
     {
@@ -15,7 +42,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rudrankriyam/PicoDocs.git",
       "state" : {
-        "branch" : "HEAD",
+        "branch" : "main",
         "revision" : "3b1c0823b8d471fcdc9fa616fcc7991438d302a7"
       }
     },
@@ -42,8 +69,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jkrukowski/swift-embeddings.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "57ecf70169893b23bc06503da0583b882787ba37"
+        "revision" : "d8726665fe8650fd2279f87825774e111fac893d",
+        "version" : "0.0.10"
+      }
+    },
+    {
+      "identity" : "swift-numerics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-numerics",
+      "state" : {
+        "revision" : "0a5bc04095a675662cf24757cc0640aa2204253b",
+        "version" : "1.0.2"
       }
     },
     {
@@ -69,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/huggingface/swift-transformers.git",
       "state" : {
-        "revision" : "d42fdae473c49ea216671da8caae58e102d28709",
-        "version" : "0.1.14"
+        "revision" : "8a83416cc00ab07a5de9991e6ad817a9b8588d20",
+        "version" : "0.1.15"
       }
     },
     {
@@ -87,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rryam/VecturaKit.git",
       "state" : {
-        "branch" : "HEAD",
-        "revision" : "5910dc95cbfdddc44189ca3437f4519b631bf274"
+        "branch" : "main",
+        "revision" : "d5b2ee42605a4eaad6c6302a89590d1dbdda91d4"
       }
     }
   ],

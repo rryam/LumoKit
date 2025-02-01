@@ -15,15 +15,13 @@ let package = Package(
             targets: ["LumoKit"]),
     ],
     dependencies: [
-        // Changed from branch to exact commit
         .package(
             url: "https://github.com/rudrankriyam/PicoDocs.git",
-            revision: "HEAD"
+            branch: "main"
         ),
-        // Changed from branch to exact commit
         .package(
             url: "https://github.com/rryam/VecturaKit.git",
-            revision: "HEAD"
+            branch: "main"
         ),
     ],
     targets: [
