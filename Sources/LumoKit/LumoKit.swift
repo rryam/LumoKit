@@ -27,20 +27,31 @@ public final class LumoKit {
         await doc.parse(to: .markdown)
 
         guard let fullContent = await doc.exportedContent?.joined(separator: "\n") else {
-            throw NSError(domain: "LumoKitError", code: 404, userInfo: [NSLocalizedDescriptionKey: "Document content is empty or invalid."])
+            throw LumoKitError.emptyDocument
         }
 
-        return chunkText(fullContent, size: chunkSize)
+        return try chunkText(fullContent, size: chunkSize)
     }
 
-    /// Split text into smaller chunks
-    private func chunkText(_ text: String, size: Int) -> [String] {
+    /// Splits a given text into chunks of approximately `size` characters.
+    /// - Parameters:
+    ///   - text: The full text to split.
+    ///   - size: The maximum character count per chunk. Must be greater than 0.
+    /// - Returns: An array of text chunks.
+    /// - Note: If `size` is non-positive, the original text is returned as a single chunk.
+    public func chunkText(_ text: String, size: Int) throws -> [String] {
+        // Validate the chunk size
+        guard size > 0 else {
+            throw LumoKitError.invalidChunkSize
+        }
+
         let words = text.split(separator: " ")
         var chunks: [String] = []
         var currentChunk: [Substring] = []
         var currentSize = 0
 
         for word in words {
+            // +1 accounts for the space separator
             if currentSize + word.count + 1 > size {
                 chunks.append(currentChunk.joined(separator: " "))
                 currentChunk = []
@@ -64,4 +75,12 @@ public final class LumoKit {
     public func resetDB() async throws {
         try await vectura.reset()
     }
+}
+
+public enum LumoKitError: Error {
+    /// Thrown when the document has no valid content to parse.
+    case emptyDocument
+
+    /// Thrown when the specified chunk size is invalid (non-positive).
+    case invalidChunkSize
 }
