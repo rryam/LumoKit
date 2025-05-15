@@ -4,6 +4,14 @@ LumoKit is a lightweight Swift library for **Retrieval-Augmented Generation (RAG
 
 The name **LumoKit** is derived from the Chinese characters **流** (*liú*) meaning "flow" and **模** (*mó*) meaning "model." It symbolizes the idea of **flowing information through a model**, reflecting data retrieval for a large language model.
 
+## Support
+
+Love this project? Check out my books to explore more of AI and iOS development:
+- [Exploring AI for iOS Development](https://academy.rudrank.com/product/ai)
+- [Exploring AI-Assisted Coding for iOS Development](https://academy.rudrank.com/product/ai-assisted-coding)
+
+Your support helps to keep this project growing!
+
 ## Key Features
 
 - **Parse and Chunk Documents**: Use `PicoDocs` to extract content from files and split them into manageable chunks for efficient indexing.
