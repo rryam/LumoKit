@@ -1,0 +1,45 @@
+definitions:
+  triggering:
+    push: &events
+      events:
+        - push
+        - pull_request
+workflows:
+  lumokit:
+    name: LumoKit Workflow
+    environment:
+      xcode: 16.1
+      vars:
+        XCODE_SCHEME: "LumoKit"
+        APP_ID: "LumoKit"
+    when:
+      changeset:
+        includes:
+          - 'Sources'
+          - 'Tests'
+    triggering:
+      <<: *events
+    scripts:
+      - name: SwiftLint
+        script: |
+          #!/bin/zsh
+
+          swiftlint --strict
+      - name: Build Framework
+        script: |
+          #!/bin/zsh
+
+          xcodebuild clean build \
+            -scheme "$XCODE_SCHEME" \
+            -destination "platform=macOS" \
+            -skipPackagePluginValidation
+      - name: Test Framework
+        script: |
+          #!/bin/zsh
+
+          set -o pipefail
+          xcodebuild clean test \
+            -scheme "$XCODE_SCHEME" \
+            -destination "platform=macOS" \
+            -skipPackagePluginValidation | xcpretty --report junit
+        test_report: build/reports/junit.xml
