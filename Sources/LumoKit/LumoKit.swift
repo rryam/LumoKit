@@ -67,7 +67,11 @@ public final class LumoKit {
     }
 
     /// Search for relevant documents in the vector database
-    public func semanticSearch(query: String, numResults: Int = 5, threshold: Float = 0.7) async throws -> [VecturaSearchResult] {
+    public func semanticSearch(
+        query: String,
+        numResults: Int = 5,
+        threshold: Float = 0.7
+    ) async throws -> [VecturaSearchResult] {
         try await vectura.search(query: query, numResults: numResults, threshold: threshold)
     }
 

@@ -12,7 +12,7 @@ let package = Package(
     products: [
         .library(
             name: "LumoKit",
-            targets: ["LumoKit"]),
+            targets: ["LumoKit"])
     ],
     dependencies: [
         .package(
@@ -22,7 +22,7 @@ let package = Package(
         .package(
             url: "https://github.com/rryam/VecturaKit.git",
             branch: "main"
-        ),
+        )
     ],
     targets: [
         .target(
@@ -34,6 +34,6 @@ let package = Package(
         .testTarget(
             name: "LumoKitTests",
             dependencies: ["LumoKit"]
-        ),
+        )
     ]
 )
