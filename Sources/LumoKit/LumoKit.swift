@@ -5,8 +5,8 @@ import Foundation
 public final class LumoKit {
     private let vectura: VecturaKit
 
-    public init(config: VecturaConfig) throws {
-        self.vectura = try VecturaKit(config: config)
+    public init(config: VecturaConfig) async throws {
+        self.vectura = try await VecturaKit(config: config)
     }
 
     /// Parse and index a document from a given file URL
