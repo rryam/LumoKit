@@ -8,7 +8,7 @@ workflows:
   lumokit:
     name: LumoKit Workflow
     environment:
-      xcode: 16.1
+      xcode: 26.0
       vars:
         XCODE_SCHEME: "LumoKit"
         APP_ID: "LumoKit"
