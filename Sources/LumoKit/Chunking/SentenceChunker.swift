@@ -88,7 +88,7 @@ struct SentenceChunker: ChunkingStrategy {
             }
 
             currentSentences.append((sentence, sentenceData.range))
-            currentSize += sentenceSize + (currentSentences.count > 1 ? 1 : 0)
+            currentSize += sentenceSize + (currentSentences.count > 1 ? ChunkingHelper.Constants.spaceSeparatorSize : 0)
         }
 
         // Add remaining sentences as final chunk
@@ -122,25 +122,19 @@ struct SentenceChunker: ChunkingStrategy {
         config: ChunkingConfig,
         hasNext: Bool
     ) {
-        guard let firstRange = sentences.first?.range,
-              let lastRange = sentences.last?.range else {
+        guard let chunk = ChunkingHelper.createChunkFromSegments(
+            segments: sentences,
+            separator: ChunkingHelper.Constants.spaceSeparator,
+            textExtractor: { $0.text },
+            rangeExtractor: { $0.range },
+            text: text,
+            chunks: chunks,
+            config: config,
+            hasNext: hasNext
+        ) else {
             return
         }
-
-        let chunkText = sentences.map { $0.text }.joined(separator: " ")
-        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-        let metadata = ChunkMetadata(
-            index: chunks.count,
-            startPosition: startPos,
-            endPosition: endPos,
-            hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: hasNext,
-            contentType: config.contentType,
-            source: nil
-        )
-        chunks.append(Chunk(text: chunkText, metadata: metadata))
+        chunks.append(chunk)
     }
 
 }

@@ -26,6 +26,30 @@ public struct ChunkingStrategyFactory {
 
 /// Base functionality shared across chunking strategies
 struct ChunkingHelper {
+    /// Constants used for chunking calculations
+    enum Constants {
+        /// Paragraph separator string ("\n\n")
+        static let paragraphSeparator = "\n\n"
+
+        /// Paragraph separator size in characters (2 for "\n\n")
+        static let paragraphSeparatorSize = 2
+
+        /// Line separator string ("\n")
+        static let lineSeparator = "\n"
+
+        /// Line separator size in characters (1 for "\n")
+        static let lineSeparatorSize = 1
+
+        /// Space separator string (" ")
+        static let spaceSeparator = " "
+
+        /// Space separator size in characters (1 for " ")
+        static let spaceSeparatorSize = 1
+
+        /// Number of lines to use for code block overlap
+        static let codeOverlapLineCount = 3
+    }
+
     /// Validates chunk size configuration
     static func validateChunkSize(_ size: Int) throws {
         guard size > 0 else {
@@ -46,6 +70,51 @@ struct ChunkingHelper {
         return LumoKitError.chunkingFailed(strategy: strategyName, underlyingError: error)
     }
 
+    /// Creates a chunk from segments with ranges
+    /// - Parameters:
+    ///   - segments: Array of text segments with their ranges
+    ///   - separator: String separator to join segments (e.g., " ", "\n", "\n\n")
+    ///   - textExtractor: Closure to extract text from each segment
+    ///   - text: The original full text (for position calculation)
+    ///   - chunks: The current chunks array (for index calculation)
+    ///   - config: Chunking configuration
+    ///   - hasNext: Whether there are more chunks coming
+    /// - Returns: A new Chunk, or nil if segments are empty
+    static func createChunkFromSegments<T>(
+        segments: [T],
+        separator: String,
+        textExtractor: (T) -> String,
+        rangeExtractor: (T) -> Range<String.Index>,
+        text: String,
+        chunks: [Chunk],
+        config: ChunkingConfig,
+        hasNext: Bool
+    ) -> Chunk? {
+        guard let firstSegment = segments.first,
+              let lastSegment = segments.last else {
+            return nil
+        }
+
+        let firstRange = rangeExtractor(firstSegment)
+        let lastRange = rangeExtractor(lastSegment)
+
+        let chunkText = segments.map(textExtractor).joined(separator: separator)
+        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
+
+        let metadata = ChunkMetadata(
+            index: chunks.count,
+            startPosition: startPos,
+            endPosition: endPos,
+            hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+            hasOverlapWithNext: hasNext,
+            contentType: config.contentType,
+            source: nil
+        )
+
+        return Chunk(text: chunkText, metadata: metadata)
+    }
+
     /// Calculate overlap for text segments
     /// - Parameters:
     ///   - segments: Array of text segments
@@ -55,7 +124,7 @@ struct ChunkingHelper {
     static func calculateOverlap(
         _ segments: [String],
         targetSize: Int,
-        separator: Int = 1
+        separator: Int = Constants.spaceSeparatorSize
     ) -> (segments: [String], size: Int) {
         var overlapSegments: [String] = []
         var overlapSize = 0
@@ -71,5 +140,34 @@ struct ChunkingHelper {
         }
 
         return (overlapSegments, overlapSize)
+    }
+
+    /// Creates a chunk with explicit position values
+    /// - Parameters:
+    ///   - text: The chunk text content
+    ///   - index: The chunk index
+    ///   - startPosition: Start position in the original text
+    ///   - endPosition: End position in the original text
+    ///   - config: Chunking configuration
+    ///   - hasNext: Whether there are more chunks coming
+    /// - Returns: A new Chunk
+    static func createChunk(
+        text: String,
+        index: Int,
+        startPosition: Int,
+        endPosition: Int,
+        config: ChunkingConfig,
+        hasNext: Bool
+    ) -> Chunk {
+        let metadata = ChunkMetadata(
+            index: index,
+            startPosition: startPosition,
+            endPosition: endPosition,
+            hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
+            hasOverlapWithNext: hasNext,
+            contentType: config.contentType,
+            source: nil
+        )
+        return Chunk(text: text, metadata: metadata)
     }
 }
