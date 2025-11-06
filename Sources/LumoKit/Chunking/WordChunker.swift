@@ -28,8 +28,10 @@ struct WordChunker: ChunkingStrategy {
             // Check if adding this word would exceed the chunk size
             if currentSize + wordSize + 1 > config.chunkSize && !currentWords.isEmpty {
                 // Create chunk from accumulated words
-                let firstRange = currentWords.first!.range
-                let lastRange = currentWords.last!.range
+                guard let firstRange = currentWords.first?.range,
+                      let lastRange = currentWords.last?.range else {
+                    continue
+                }
                 let chunkText = currentWords.map { $0.word }.joined(separator: " ")
                 let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
                 let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
@@ -56,9 +58,9 @@ struct WordChunker: ChunkingStrategy {
         }
 
         // Add remaining words as final chunk
-        if !currentWords.isEmpty {
-            let firstRange = currentWords.first!.range
-            let lastRange = currentWords.last!.range
+        if !currentWords.isEmpty,
+           let firstRange = currentWords.first?.range,
+           let lastRange = currentWords.last?.range {
             let chunkText = currentWords.map { $0.word }.joined(separator: " ")
             let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
             let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)

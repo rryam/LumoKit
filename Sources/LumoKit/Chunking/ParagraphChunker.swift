@@ -26,9 +26,9 @@ struct ParagraphChunker: ChunkingStrategy {
             // If a single paragraph exceeds chunk size, use sentence chunking
             if paragraphSize > config.chunkSize {
                 // Flush current chunk if any
-                if !currentParagraphs.isEmpty {
-                    let firstRange = currentParagraphs.first!.range
-                    let lastRange = currentParagraphs.last!.range
+                if !currentParagraphs.isEmpty,
+                   let firstRange = currentParagraphs.first?.range,
+                   let lastRange = currentParagraphs.last?.range {
                     let chunkText = currentParagraphs.map { $0.text }.joined(separator: "\n\n")
                     let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
                     let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
@@ -71,10 +71,9 @@ struct ParagraphChunker: ChunkingStrategy {
             }
 
             // Check if adding this paragraph would exceed the chunk size
-            if currentSize + paragraphSize > config.chunkSize && !currentParagraphs.isEmpty {
-                // Create chunk from accumulated paragraphs
-                let firstRange = currentParagraphs.first!.range
-                let lastRange = currentParagraphs.last!.range
+            if currentSize + paragraphSize > config.chunkSize && !currentParagraphs.isEmpty,
+               let firstRange = currentParagraphs.first?.range,
+               let lastRange = currentParagraphs.last?.range {
                 let chunkText = currentParagraphs.map { $0.text }.joined(separator: "\n\n")
                 let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
                 let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
@@ -107,9 +106,9 @@ struct ParagraphChunker: ChunkingStrategy {
         }
 
         // Add remaining paragraphs as final chunk
-        if !currentParagraphs.isEmpty {
-            let firstRange = currentParagraphs.first!.range
-            let lastRange = currentParagraphs.last!.range
+        if !currentParagraphs.isEmpty,
+           let firstRange = currentParagraphs.first?.range,
+           let lastRange = currentParagraphs.last?.range {
             let chunkText = currentParagraphs.map { $0.text }.joined(separator: "\n\n")
             let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
             let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)

@@ -27,9 +27,9 @@ struct SentenceChunker: ChunkingStrategy {
             // If a single sentence exceeds chunk size, split it by words
             if sentenceSize > config.chunkSize {
                 // Flush current chunk if any
-                if !currentSentences.isEmpty {
-                    let firstRange = currentSentences.first!.range
-                    let lastRange = currentSentences.last!.range
+                if !currentSentences.isEmpty,
+                   let firstRange = currentSentences.first?.range,
+                   let lastRange = currentSentences.last?.range {
                     let chunkText = currentSentences.map { $0.text }.joined(separator: " ")
                     let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
                     let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
@@ -69,10 +69,9 @@ struct SentenceChunker: ChunkingStrategy {
             }
 
             // Check if adding this sentence would exceed the chunk size
-            if currentSize + sentenceSize > config.chunkSize && !currentSentences.isEmpty {
-                // Create chunk from accumulated sentences
-                let firstRange = currentSentences.first!.range
-                let lastRange = currentSentences.last!.range
+            if currentSize + sentenceSize > config.chunkSize && !currentSentences.isEmpty,
+               let firstRange = currentSentences.first?.range,
+               let lastRange = currentSentences.last?.range {
                 let chunkText = currentSentences.map { $0.text }.joined(separator: " ")
                 let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
                 let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
@@ -108,9 +107,9 @@ struct SentenceChunker: ChunkingStrategy {
         }
 
         // Add remaining sentences as final chunk
-        if !currentSentences.isEmpty {
-            let firstRange = currentSentences.first!.range
-            let lastRange = currentSentences.last!.range
+        if !currentSentences.isEmpty,
+           let firstRange = currentSentences.first?.range,
+           let lastRange = currentSentences.last?.range {
             let chunkText = currentSentences.map { $0.text }.joined(separator: " ")
             let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
             let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
