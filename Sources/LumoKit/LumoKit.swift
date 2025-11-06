@@ -6,7 +6,8 @@ public final class LumoKit {
     private let vectura: VecturaKit
 
     public init(config: VecturaConfig) async throws {
-        self.vectura = try await VecturaKit(config: config)
+        let embedder = SwiftEmbedder()
+        self.vectura = try await VecturaKit(config: config, embedder: embedder)
     }
 
     /// Parse and index a document from a given file URL
@@ -72,7 +73,7 @@ public final class LumoKit {
         numResults: Int = 5,
         threshold: Float = 0.7
     ) async throws -> [VecturaSearchResult] {
-        try await vectura.search(query: query, numResults: numResults, threshold: threshold)
+        try await vectura.search(query: .text(query), numResults: numResults, threshold: threshold)
     }
 
     /// Reset the vector database
