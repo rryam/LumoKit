@@ -168,22 +168,16 @@ struct SemanticChunker: ChunkingStrategy {
                 )
 
                 if config.overlapSize > 0 && idx < sections.count - 1 {
-                    // Calculate overlap based on target size
-                    var overlapSections: [(section: String, range: Range<String.Index>)] = []
-                    var overlapSize = 0
+                    let sectionTexts = currentSections.map { $0.section }
+                    let overlap = ChunkingHelper.calculateOverlap(sectionTexts, targetSize: config.overlapSize, separator: 2)
 
-                    for section in currentSections.reversed() {
-                        let sectionLength = section.section.count
-                        if overlapSize + sectionLength <= config.overlapSize {
-                            overlapSections.insert(section, at: 0)
-                            overlapSize += sectionLength + (overlapSections.count > 1 ? 2 : 0)
-                        } else {
-                            break
-                        }
+                    if !overlap.segments.isEmpty {
+                        currentSections = Array(currentSections.suffix(overlap.segments.count))
+                        currentSize = overlap.size
+                    } else {
+                        currentSections = []
+                        currentSize = 0
                     }
-
-                    currentSections = overlapSections
-                    currentSize = overlapSize
                 } else {
                     currentSections = []
                     currentSize = 0

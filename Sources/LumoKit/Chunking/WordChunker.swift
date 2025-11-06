@@ -53,7 +53,7 @@ struct WordChunker: ChunkingStrategy {
                     let wordStrings = currentWords.map { $0.word }
                     let overlap = ChunkingHelper.calculateOverlap(wordStrings, targetSize: config.overlapSize)
                     let overlapCount = overlap.segments.count
-                    currentWords = Array(currentWords.suffix(overlapCount))
+                    currentWords = overlapCount > 0 ? Array(currentWords.suffix(overlapCount)) : []
                     currentSize = overlap.size
                 } else {
                     currentWords = []

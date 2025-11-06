@@ -65,7 +65,7 @@ struct SentenceChunker: ChunkingStrategy {
                 if config.overlapSize > 0 && idx < sentences.count - 1 {
                     let overlap = ChunkingHelper.calculateOverlap(currentSentences.map { $0.text }, targetSize: config.overlapSize)
                     let overlapCount = overlap.segments.count
-                    currentSentences = Array(currentSentences.suffix(overlapCount))
+                    currentSentences = overlapCount > 0 ? Array(currentSentences.suffix(overlapCount)) : []
                     currentSize = overlap.size
                 } else {
                     currentSentences = []
