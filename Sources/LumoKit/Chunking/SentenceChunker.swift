@@ -30,14 +30,16 @@ struct SentenceChunker: ChunkingStrategy {
                     let chunkText = currentSentences.joined(separator: " ")
                     let chunkEndPosition = chunkStartPosition + chunkText.count
 
-                    chunks.append(createChunk(
-                        text: chunkText,
+                    let metadata = ChunkMetadata(
                         index: chunks.count,
                         startPosition: chunkStartPosition,
                         endPosition: chunkEndPosition,
-                        hasNext: true,
-                        config: config
-                    ))
+                        hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+                        hasOverlapWithNext: true,
+                        contentType: config.contentType,
+                        source: nil
+                    )
+                    chunks.append(Chunk(text: chunkText, metadata: metadata))
 
                     currentSentences = []
                     currentSize = 0
@@ -69,14 +71,16 @@ struct SentenceChunker: ChunkingStrategy {
                 let chunkText = currentSentences.joined(separator: " ")
                 let chunkEndPosition = chunkStartPosition + chunkText.count
 
-                chunks.append(createChunk(
-                    text: chunkText,
+                let metadata = ChunkMetadata(
                     index: chunks.count,
                     startPosition: chunkStartPosition,
                     endPosition: chunkEndPosition,
-                    hasNext: idx < sentences.count - 1,
-                    config: config
-                ))
+                    hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+                    hasOverlapWithNext: idx < sentences.count - 1,
+                    contentType: config.contentType,
+                    source: nil
+                )
+                chunks.append(Chunk(text: chunkText, metadata: metadata))
 
                 // Handle overlap
                 if config.overlapSize > 0 && idx < sentences.count - 1 {
@@ -100,14 +104,16 @@ struct SentenceChunker: ChunkingStrategy {
             let chunkText = currentSentences.joined(separator: " ")
             let chunkEndPosition = chunkStartPosition + chunkText.count
 
-            chunks.append(createChunk(
-                text: chunkText,
+            let metadata = ChunkMetadata(
                 index: chunks.count,
                 startPosition: chunkStartPosition,
                 endPosition: chunkEndPosition,
-                hasNext: false,
-                config: config
-            ))
+                hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+                hasOverlapWithNext: false,
+                contentType: config.contentType,
+                source: nil
+            )
+            chunks.append(Chunk(text: chunkText, metadata: metadata))
         }
 
         return chunks
@@ -127,26 +133,6 @@ struct SentenceChunker: ChunkingStrategy {
         }
 
         return sentences
-    }
-
-    private func createChunk(
-        text: String,
-        index: Int,
-        startPosition: Int,
-        endPosition: Int,
-        hasNext: Bool,
-        config: ChunkingConfig
-    ) -> Chunk {
-        let metadata = ChunkMetadata(
-            index: index,
-            startPosition: startPosition,
-            endPosition: endPosition,
-            hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: hasNext,
-            contentType: config.contentType,
-            source: nil
-        )
-        return Chunk(text: text, metadata: metadata)
     }
 
     private func calculateOverlap(_ sentences: [String], targetSize: Int) -> (sentences: [String], size: Int) {

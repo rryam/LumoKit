@@ -30,14 +30,16 @@ struct ParagraphChunker: ChunkingStrategy {
                     let chunkText = currentParagraphs.joined(separator: "\n\n")
                     let chunkEndPosition = chunkStartPosition + chunkText.count
 
-                    chunks.append(createChunk(
-                        text: chunkText,
+                    let metadata = ChunkMetadata(
                         index: chunks.count,
                         startPosition: chunkStartPosition,
                         endPosition: chunkEndPosition,
-                        hasNext: true,
-                        config: config
-                    ))
+                        hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+                        hasOverlapWithNext: true,
+                        contentType: config.contentType,
+                        source: nil
+                    )
+                    chunks.append(Chunk(text: chunkText, metadata: metadata))
 
                     currentParagraphs = []
                     currentSize = 0
@@ -72,14 +74,16 @@ struct ParagraphChunker: ChunkingStrategy {
                 let chunkText = currentParagraphs.joined(separator: "\n\n")
                 let chunkEndPosition = chunkStartPosition + chunkText.count
 
-                chunks.append(createChunk(
-                    text: chunkText,
+                let metadata = ChunkMetadata(
                     index: chunks.count,
                     startPosition: chunkStartPosition,
                     endPosition: chunkEndPosition,
-                    hasNext: idx < paragraphs.count - 1,
-                    config: config
-                ))
+                    hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+                    hasOverlapWithNext: idx < paragraphs.count - 1,
+                    contentType: config.contentType,
+                    source: nil
+                )
+                chunks.append(Chunk(text: chunkText, metadata: metadata))
 
                 // Handle overlap
                 if config.overlapSize > 0 && idx < paragraphs.count - 1 {
@@ -103,14 +107,16 @@ struct ParagraphChunker: ChunkingStrategy {
             let chunkText = currentParagraphs.joined(separator: "\n\n")
             let chunkEndPosition = chunkStartPosition + chunkText.count
 
-            chunks.append(createChunk(
-                text: chunkText,
+            let metadata = ChunkMetadata(
                 index: chunks.count,
                 startPosition: chunkStartPosition,
                 endPosition: chunkEndPosition,
-                hasNext: false,
-                config: config
-            ))
+                hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+                hasOverlapWithNext: false,
+                contentType: config.contentType,
+                source: nil
+            )
+            chunks.append(Chunk(text: chunkText, metadata: metadata))
         }
 
         return chunks
@@ -130,26 +136,6 @@ struct ParagraphChunker: ChunkingStrategy {
         }
 
         return paragraphs
-    }
-
-    private func createChunk(
-        text: String,
-        index: Int,
-        startPosition: Int,
-        endPosition: Int,
-        hasNext: Bool,
-        config: ChunkingConfig
-    ) -> Chunk {
-        let metadata = ChunkMetadata(
-            index: index,
-            startPosition: startPosition,
-            endPosition: endPosition,
-            hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: hasNext,
-            contentType: config.contentType,
-            source: nil
-        )
-        return Chunk(text: text, metadata: metadata)
     }
 
     private func calculateOverlap(_ paragraphs: [String], targetSize: Int) -> (paragraphs: [String], size: Int) {
