@@ -48,9 +48,10 @@ struct ChunkingHelper {
         var overlapSize = 0
 
         for segment in segments.reversed() {
-            if overlapSize + segment.count <= targetSize {
+            let requiredSize = segment.count + (overlapSegments.isEmpty ? 0 : separator)
+            if overlapSize + requiredSize <= targetSize {
                 overlapSegments.insert(segment, at: 0)
-                overlapSize += segment.count + (overlapSegments.count > 1 ? separator : 0)
+                overlapSize += requiredSize
             } else {
                 break
             }
