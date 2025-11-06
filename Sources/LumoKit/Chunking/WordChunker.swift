@@ -6,27 +6,38 @@ struct WordChunker: ChunkingStrategy {
     func chunk(text: String, config: ChunkingConfig) throws -> [Chunk] {
         try ChunkingHelper.validateChunkSize(config.chunkSize)
 
-        let words = text.split(separator: " ").map { String($0) }
+        guard !text.isEmpty else { return [] }
+
+        var words: [(word: String, range: Range<String.Index>)] = []
+        text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: .byWords) { substring, range, _, _ in
+            if let word = substring {
+                words.append((word, range))
+            }
+        }
+
         guard !words.isEmpty else { return [] }
 
         var chunks: [Chunk] = []
-        var currentWords: [String] = []
+        var currentWords: [(word: String, range: Range<String.Index>)] = []
         var currentSize = 0
-        var chunkStartPosition = 0
 
-        for (idx, word) in words.enumerated() {
+        for (idx, wordData) in words.enumerated() {
+            let word = wordData.word
             let wordSize = word.count
 
             // Check if adding this word would exceed the chunk size
             if currentSize + wordSize + 1 > config.chunkSize && !currentWords.isEmpty {
                 // Create chunk from accumulated words
-                let chunkText = currentWords.joined(separator: " ")
-                let chunkEndPosition = chunkStartPosition + chunkText.count
+                let firstRange = currentWords.first!.range
+                let lastRange = currentWords.last!.range
+                let chunkText = currentWords.map { $0.word }.joined(separator: " ")
+                let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+                let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 
                 let metadata = ChunkMetadata(
                     index: chunks.count,
-                    startPosition: chunkStartPosition,
-                    endPosition: chunkEndPosition,
+                    startPosition: startPos,
+                    endPosition: endPos,
                     hasOverlapWithPrevious: false,
                     hasOverlapWithNext: idx < words.count - 1,
                     contentType: config.contentType,
@@ -38,22 +49,24 @@ struct WordChunker: ChunkingStrategy {
                 // Start new chunk
                 currentWords = []
                 currentSize = 0
-                chunkStartPosition = chunkEndPosition + 1 // +1 for space
             }
 
-            currentWords.append(word)
+            currentWords.append(wordData)
             currentSize += wordSize + (currentWords.count > 1 ? 1 : 0) // +1 for space between words
         }
 
         // Add remaining words as final chunk
         if !currentWords.isEmpty {
-            let chunkText = currentWords.joined(separator: " ")
-            let chunkEndPosition = chunkStartPosition + chunkText.count
+            let firstRange = currentWords.first!.range
+            let lastRange = currentWords.last!.range
+            let chunkText = currentWords.map { $0.word }.joined(separator: " ")
+            let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+            let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 
             let metadata = ChunkMetadata(
                 index: chunks.count,
-                startPosition: chunkStartPosition,
-                endPosition: chunkEndPosition,
+                startPosition: startPos,
+                endPosition: endPos,
                 hasOverlapWithPrevious: false,
                 hasOverlapWithNext: false,
                 contentType: config.contentType,

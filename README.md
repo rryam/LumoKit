@@ -107,7 +107,7 @@ import LumoKit
 import VecturaKit
 
 // Configure vector database
-let vectoraConfig = VecturaConfig(
+let vecturaConfig = VecturaConfig(
     name: "knowledge-base",
     searchOptions: .init(
         defaultNumResults: 10,
@@ -125,7 +125,7 @@ let chunkingConfig = ChunkingConfig(
 
 // Initialize LumoKit
 let lumoKit = try await LumoKit(
-    config: vectoraConfig,
+    config: vecturaConfig,
     chunkingConfig: chunkingConfig
 )
 
@@ -311,6 +311,8 @@ if let urls = try? fileManager.contentsOfDirectory(at: folder, includingProperti
 ## Error Handling
 
 ```swift
+let url = URL(fileURLWithPath: "/path/to/document.pdf")
+
 do {
     try await lumoKit.parseAndIndex(url: url)
 } catch LumoKitError.emptyDocument {
