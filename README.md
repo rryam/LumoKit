@@ -18,38 +18,33 @@ Deepen your understanding of AI and iOS development with these books:
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
-  - [1. Configure VecturaKit and initialize LumoKit](#1-configure-vectorakit-and-initialize-lumokit)
-  - [2. Parse a file and index its contents](#2-parse-a-file-and-index-its-contents)
-  - [3. Run semantic search queries](#3-run-semantic-search-queries)
-  - [4. Reset the database when needed](#4-reset-the-database-when-needed)
+- [Chunking Strategies](#chunking-strategies)
 - [Examples](#examples)
-  - [Index a single file](#index-a-single-file)
-  - [Index multiple files in a folder](#index-multiple-files-in-a-folder)
-  - [Parse without indexing](#parse-without-indexing)
-  - [Custom storage location](#custom-storage-location)
-  - [Handling errors](#handling-errors)
 - [Error Handling](#error-handling)
-- [Tips](#tips)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Features
 
-- **Document Parsing:** Uses PicoDocs to fetch and convert local files (PDF, Markdown, HTML, and more) into structured text.
-- **Chunking Pipeline:** Splits parsed text into configurable segments ideal for retrieval.
-- **Semantic Search:** Leverages VecturaKit’s vector database to score and rank relevant passages.
-- **Async-First API:** All indexing and search operations are async, ready for Swift concurrency.
-- **Database Management:** Reset or re-index data stores without leaving the app.
+- **Document Parsing:** Parse PDFs, Markdown, HTML, and text files using PicoDocs
+- **Multiple Chunking Strategies:** Sentence-based, paragraph-based, or semantic chunking with configurable overlap
+- **Content-Aware:** Different handling for prose, code, markdown, and mixed content
+- **Semantic Search:** Vector search powered by VecturaKit
+- **Async API:** Built with Swift concurrency
+- **Database Management:** Reset or re-index on demand
 
 ## API Overview
 
 ```swift
 public final class LumoKit {
-    public init(config: VecturaConfig) throws
+    public init(config: VecturaConfig, chunkingConfig: ChunkingConfig = ChunkingConfig()) async throws
 
-    public func parseAndIndex(url: URL, chunkSize: Int = 500) async throws
-    public func parseDocument(from url: URL, chunkSize: Int = 500) async throws -> [String]
-    public func chunkText(_ text: String, size: Int) throws -> [String]
+    public func parseAndIndex(url: URL, chunkingConfig: ChunkingConfig? = nil) async throws
+    public func parseDocument(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [String]
+    public func parseDocumentWithMetadata(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [Chunk]
+
+    public func chunkText(_ text: String, config: ChunkingConfig) throws -> [String]
+    public func chunkTextWithMetadata(_ text: String, config: ChunkingConfig) throws -> [Chunk]
 
     public func semanticSearch(
         query: String,
@@ -58,6 +53,13 @@ public final class LumoKit {
     ) async throws -> [VecturaSearchResult]
 
     public func resetDB() async throws
+}
+
+public struct ChunkingConfig {
+    public let chunkSize: Int
+    public let overlapPercentage: Double
+    public let strategy: ChunkingStrategyType // .sentence, .paragraph, .semantic
+    public let contentType: ContentType // .prose, .code, .markdown, .mixed
 }
 
 public enum LumoKitError: Error {
@@ -100,13 +102,12 @@ Then attach the dependency to your target:
 
 ## Getting Started
 
-### 1. Configure VecturaKit and initialize LumoKit
-
 ```swift
 import LumoKit
 import VecturaKit
 
-let config = VecturaConfig(
+// Configure vector database
+let vectoraConfig = VecturaConfig(
     name: "knowledge-base",
     searchOptions: .init(
         defaultNumResults: 10,
@@ -114,19 +115,25 @@ let config = VecturaConfig(
     )
 )
 
-let lumoKit = try await LumoKit(config: config)
-```
+// Configure chunking strategy
+let chunkingConfig = ChunkingConfig(
+    chunkSize: 500,
+    overlapPercentage: 0.15,  // 15% overlap between chunks
+    strategy: .semantic,       // Intelligent content-aware chunking
+    contentType: .prose        // Optimize for prose text
+)
 
-### 2. Parse a file and index its contents
+// Initialize LumoKit
+let lumoKit = try await LumoKit(
+    config: vectoraConfig,
+    chunkingConfig: chunkingConfig
+)
 
-```swift
+// Parse and index a document
 let url = URL(fileURLWithPath: "/path/to/document.pdf")
-try await lumoKit.parseAndIndex(url: url, chunkSize: 600)
-```
+try await lumoKit.parseAndIndex(url: url)
 
-### 3. Run semantic search queries
-
-```swift
+// Search
 let results = try await lumoKit.semanticSearch(
     query: "Explain vector databases",
     numResults: 5,
@@ -138,48 +145,139 @@ for result in results {
 }
 ```
 
-### 4. Reset the database when needed
+## Chunking Strategies
+
+LumoKit provides three strategies for splitting text into chunks:
+
+### Sentence Chunking (`.sentence`)
+
+Respects sentence boundaries using NLTokenizer. Best for general prose and question-answering systems.
 
 ```swift
-try await lumoKit.resetDB()
+let config = ChunkingConfig(
+    chunkSize: 500,
+    overlapPercentage: 0.15,
+    strategy: .sentence,
+    contentType: .prose
+)
+```
+
+### Paragraph Chunking (`.paragraph`)
+
+Keeps paragraphs together when possible. Best for documents with clear paragraph structure.
+
+```swift
+let config = ChunkingConfig(
+    chunkSize: 800,
+    overlapPercentage: 0.1,
+    strategy: .paragraph,
+    contentType: .prose
+)
+```
+
+### Semantic Chunking (`.semantic`) - Recommended
+
+Intelligently adapts to content type with specialized handling for different text types:
+
+**For Prose:**
+```swift
+let config = ChunkingConfig(
+    chunkSize: 600,
+    strategy: .semantic,
+    contentType: .prose
+)
+```
+
+**For Code:**
+```swift
+let config = ChunkingConfig(
+    chunkSize: 600,
+    strategy: .semantic,
+    contentType: .code  // Preserves logical code blocks
+)
+```
+
+**For Markdown:**
+```swift
+let config = ChunkingConfig(
+    chunkSize: 700,
+    strategy: .semantic,
+    contentType: .markdown  // Respects headers and structure
+)
+```
+
+**For Mixed Content:**
+```swift
+let config = ChunkingConfig(
+    chunkSize: 500,
+    strategy: .semantic,
+    contentType: .mixed  // Handles prose + code blocks
+)
+```
+
+### Chunk Overlap
+
+Configure overlap between chunks to maintain context continuity:
+
+```swift
+// High overlap (20%) - better for Q&A and semantic search
+ChunkingConfig(chunkSize: 500, overlapPercentage: 0.2)
+
+// Medium overlap (10-15%) - balanced approach
+ChunkingConfig(chunkSize: 500, overlapPercentage: 0.15)
+
+// No overlap (0%) - maximum efficiency
+ChunkingConfig(chunkSize: 500, overlapPercentage: 0.0)
 ```
 
 ## Examples
 
-### Index a single file
+### Index Multiple Files with Different Strategies
 
 ```swift
-let url = URL(fileURLWithPath: "/path/to/notes.md")
-try await lumoKit.parseAndIndex(url: url, chunkSize: 500)
-```
+let urls = [
+    ("paper.pdf", ContentType.prose),
+    ("README.md", ContentType.markdown),
+    ("main.swift", ContentType.code)
+]
 
-### Index multiple files in a folder
+for (filename, contentType) in urls {
+    let config = ChunkingConfig(
+        chunkSize: 500,
+        overlapPercentage: 0.15,
+        strategy: .semantic,
+        contentType: contentType
+    )
 
-```swift
-let folder = URL(fileURLWithPath: "/path/to/docs")
-let fileManager = FileManager.default
-let exts: Set<String> = ["pdf", "md", "markdown", "html", "txt"]
-
-if let urls = try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
-    for url in urls where exts.contains(url.pathExtension.lowercased()) {
-        try await lumoKit.parseAndIndex(url: url, chunkSize: 600)
-    }
+    let url = URL(fileURLWithPath: filename)
+    try await lumoKit.parseAndIndex(url: url, chunkingConfig: config)
 }
 ```
 
-### Parse without indexing
+### Parse Without Indexing
 
 ```swift
 let url = URL(fileURLWithPath: "/path/to/paper.pdf")
-let chunks = try await lumoKit.parseDocument(from: url, chunkSize: 400)
-print("chunks: \(chunks.count)")
+let chunks = try await lumoKit.parseDocument(from: url)
+print("Created \(chunks.count) chunks")
 ```
 
-### Custom storage location
+### Access Chunk Metadata
 
 ```swift
-import VecturaKit
+let chunks = try await lumoKit.parseDocumentWithMetadata(from: url)
 
+for chunk in chunks {
+    print("Chunk \(chunk.metadata.index)")
+    print("Position: \(chunk.metadata.startPosition)-\(chunk.metadata.endPosition)")
+    print("Has overlap: \(chunk.metadata.hasOverlapWithPrevious)")
+    print("Content: \(chunk.text)")
+}
+```
+
+### Custom Storage Location
+
+```swift
 let supportDir = try FileManager.default.url(
     for: .applicationSupportDirectory,
     in: .userDomainMask,
@@ -196,33 +294,37 @@ let config = VecturaConfig(
 let lumoKit = try await LumoKit(config: config)
 ```
 
-### Handling errors
+### Index a Folder of Documents
 
 ```swift
-do {
-    _ = try await lumoKit.parseDocument(from: URL(fileURLWithPath: "/empty.pdf"), chunkSize: 0)
-} catch LumoKitError.invalidChunkSize {
-    print("invalid chunk size")
-} catch LumoKitError.emptyDocument {
-    print("no content to parse")
-} catch {
-    print("unexpected error: \(error)")
+let folder = URL(fileURLWithPath: "/path/to/docs")
+let fileManager = FileManager.default
+let exts: Set<String> = ["pdf", "md", "markdown", "html", "txt"]
+
+if let urls = try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
+    for url in urls where exts.contains(url.pathExtension.lowercased()) {
+        try await lumoKit.parseAndIndex(url: url)
+    }
 }
 ```
 
 ## Error Handling
 
-`LumoKitError` reports invalid states:
-- `.emptyDocument` – parsing produced no text content.
-- `.invalidChunkSize` – chunk size must be greater than zero.
+```swift
+do {
+    try await lumoKit.parseAndIndex(url: url)
+} catch LumoKitError.emptyDocument {
+    print("Document is empty")
+} catch LumoKitError.invalidChunkSize {
+    print("Invalid chunk size")
+} catch {
+    print("Error: \(error)")
+}
+```
 
-Handle these cases to surface actionable messages to users or diagnostics.
-
-## Tips
-
-- Adjust `chunkSize` depending on the model’s context window; larger chunks improve coherence, smaller chunks improve specificity.
-- Provide a custom `directoryURL` in `VecturaConfig` to store the vector database in a shared app container.
-- Combine LumoKit with a language model to build a full RAG stack for summaries, answering questions, or chat experiences.
+`LumoKitError` cases:
+- `.emptyDocument` – parsing produced no text content
+- `.invalidChunkSize` – chunk size must be greater than zero
 
 ## Contributing
 
