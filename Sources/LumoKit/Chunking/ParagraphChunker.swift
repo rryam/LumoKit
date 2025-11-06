@@ -66,7 +66,11 @@ struct ParagraphChunker: ChunkingStrategy {
 
                 // Handle overlap
                 if config.overlapSize > 0 && idx < paragraphs.count - 1 {
-                    let overlap = ChunkingHelper.calculateOverlap(currentParagraphs.map { $0.text }, targetSize: config.overlapSize, separator: 2)
+                    let overlap = ChunkingHelper.calculateOverlap(
+                        currentParagraphs.map { $0.text },
+                        targetSize: config.overlapSize,
+                        separator: 2
+                    )
                     let overlapCount = overlap.segments.count
                     currentParagraphs = overlapCount > 0 ? Array(currentParagraphs.suffix(overlapCount)) : []
                     currentSize = overlap.size

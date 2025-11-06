@@ -169,7 +169,11 @@ struct SemanticChunker: ChunkingStrategy {
 
                 if config.overlapSize > 0 && idx < sections.count - 1 {
                     let sectionTexts = currentSections.map { $0.section }
-                    let overlap = ChunkingHelper.calculateOverlap(sectionTexts, targetSize: config.overlapSize, separator: 2)
+                    let overlap = ChunkingHelper.calculateOverlap(
+                        sectionTexts,
+                        targetSize: config.overlapSize,
+                        separator: 2
+                    )
 
                     if !overlap.segments.isEmpty {
                         currentSections = Array(currentSections.suffix(overlap.segments.count))
@@ -341,60 +345,80 @@ struct SemanticChunker: ChunkingStrategy {
         }
     }
 
-    private func splitLinesWithRanges(from text: String) -> [(line: String, range: Range<String.Index>)] {
-        var result: [(line: String, range: Range<String.Index>)] = []
+    private func createChunk(
+        text: String,
+        index: Int,
+        position: ChunkPosition,
+        config: ChunkingConfig,
+        hasNext: Bool
+    ) -> Chunk {
+        let metadata = ChunkMetadata(
+            index: index,
+            startPosition: position.start,
+            endPosition: position.end,
+            hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
+            hasOverlapWithNext: hasNext,
+            contentType: config.contentType,
+            source: nil
+        )
+        return Chunk(text: text, metadata: metadata)
+    }
+}
+
+// MARK: - Private Types
+private extension SemanticChunker {
+    struct ContentSegment {
+        let content: String
+        let range: Range<String.Index>
+        let isCode: Bool
+    }
+
+    struct ChunkPosition {
+        let start: Int
+        let end: Int
+    }
+}
+
+// MARK: - Text Extraction Helpers
+private extension SemanticChunker {
+    func splitLinesWithRanges(from text: String) -> [(line: String, range: Range<String.Index>)] {
+        var lines: [(line: String, range: Range<String.Index>)] = []
         var currentIndex = text.startIndex
 
         text.enumerateLines { line, _ in
-            guard currentIndex < text.endIndex else { return }
+            let endIndex = text.index(currentIndex, offsetBy: line.count, limitedBy: text.endIndex) ?? text.endIndex
+            let range = currentIndex..<endIndex
+            lines.append((line, range))
 
-            let lineEndIndex = text.index(
-                currentIndex,
-                offsetBy: line.utf16.count,
-                limitedBy: text.endIndex
-            ) ?? text.endIndex
-            let range = currentIndex..<lineEndIndex
-            result.append((line, range))
-
-            // Move past the newline character if present
-            if lineEndIndex < text.endIndex {
-                currentIndex = text.index(after: lineEndIndex)
+            // Move past the line and newline
+            if endIndex < text.endIndex {
+                currentIndex = text.index(after: endIndex)
             } else {
-                currentIndex = lineEndIndex
+                currentIndex = endIndex
             }
         }
 
-        return result
+        return lines
     }
 
-    private func extractParagraphs(from text: String) -> [String] {
-        let tokenizer = NLTokenizer(unit: .paragraph)
-        tokenizer.string = text
-
-        var paragraphs: [String] = []
-        tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
-            let paragraph = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !paragraph.isEmpty {
-                paragraphs.append(paragraph)
-            }
-            return true
-        }
-        return paragraphs
+    func extractParagraphs(from text: String) -> [String] {
+        text.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 
-    private func groupCodeIntoLogicalBlocks(
+    func groupCodeIntoLogicalBlocks(
         _ lines: [(line: String, range: Range<String.Index>)]
     ) -> [[(line: String, range: Range<String.Index>)]] {
         var blocks: [[(line: String, range: Range<String.Index>)]] = []
         var currentBlock: [(line: String, range: Range<String.Index>)] = []
 
         for lineData in lines {
-            let trimmed = lineData.line.trimmingCharacters(in: .whitespaces)
-
-            // Start new block on function/class definitions or empty lines
-            if trimmed.isEmpty && !currentBlock.isEmpty {
-                blocks.append(currentBlock)
-                currentBlock = []
+            if lineData.line.trimmingCharacters(in: .whitespaces).isEmpty {
+                if !currentBlock.isEmpty {
+                    blocks.append(currentBlock)
+                    currentBlock = []
+                }
             } else {
                 currentBlock.append(lineData)
             }
@@ -407,17 +431,17 @@ struct SemanticChunker: ChunkingStrategy {
         return blocks.isEmpty ? [lines] : blocks
     }
 
-    private func extractMarkdownSections(from text: String) -> [(section: String, range: Range<String.Index>)] {
+    func extractMarkdownSections(from text: String) -> [(section: String, range: Range<String.Index>)] {
         let lines = splitLinesWithRanges(from: text)
         var sections: [(section: String, range: Range<String.Index>)] = []
         var currentSection: [(line: String, range: Range<String.Index>)] = []
 
         for lineData in lines {
-            // New section starts with a header
-            if lineData.line.hasPrefix("#") && !currentSection.isEmpty {
-                let sectionText = currentSection.map { $0.line }.joined(separator: "\n")
-                if let firstRange = currentSection.first?.range,
+            if lineData.line.trimmingCharacters(in: .whitespaces).hasPrefix("#") {
+                if !currentSection.isEmpty,
+                   let firstRange = currentSection.first?.range,
                    let lastRange = currentSection.last?.range {
+                    let sectionText = currentSection.map { $0.line }.joined(separator: "\n")
                     sections.append((sectionText, firstRange.lowerBound..<lastRange.upperBound))
                 }
                 currentSection = [lineData]
@@ -426,24 +450,19 @@ struct SemanticChunker: ChunkingStrategy {
             }
         }
 
-        if !currentSection.isEmpty {
+        if !currentSection.isEmpty,
+           let firstRange = currentSection.first?.range,
+           let lastRange = currentSection.last?.range {
             let sectionText = currentSection.map { $0.line }.joined(separator: "\n")
-            if let firstRange = currentSection.first?.range,
-               let lastRange = currentSection.last?.range {
-                sections.append((sectionText, firstRange.lowerBound..<lastRange.upperBound))
-            }
+            sections.append((sectionText, firstRange.lowerBound..<lastRange.upperBound))
         }
 
-        return sections.isEmpty ? [(text, text.startIndex..<text.endIndex)] : sections
+        return sections.isEmpty
+            ? [(text, text.startIndex..<text.endIndex)]
+            : sections
     }
 
-    private struct ContentSegment {
-        let content: String
-        let range: Range<String.Index>
-        let isCode: Bool
-    }
-
-    private func separateCodeAndProse(_ text: String) -> [ContentSegment] {
+    func separateCodeAndProse(_ text: String) -> [ContentSegment] {
         var segments: [ContentSegment] = []
         var currentContent: [(line: String, range: Range<String.Index>)] = []
         var inCodeBlock = false
@@ -483,29 +502,5 @@ struct SemanticChunker: ChunkingStrategy {
         return segments.isEmpty
             ? [ContentSegment(content: text, range: text.startIndex..<text.endIndex, isCode: false)]
             : segments
-    }
-
-    private struct ChunkPosition {
-        let start: Int
-        let end: Int
-    }
-
-    private func createChunk(
-        text: String,
-        index: Int,
-        position: ChunkPosition,
-        config: ChunkingConfig,
-        hasNext: Bool
-    ) -> Chunk {
-        let metadata = ChunkMetadata(
-            index: index,
-            startPosition: position.start,
-            endPosition: position.end,
-            hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: hasNext,
-            contentType: config.contentType,
-            source: nil
-        )
-        return Chunk(text: text, metadata: metadata)
     }
 }

@@ -39,7 +39,11 @@ struct ChunkingHelper {
     ///   - targetSize: Target size for overlap in characters
     ///   - separator: Separator size between segments (default: 1 for space)
     /// - Returns: Tuple of overlapping segments and their total size
-    static func calculateOverlap(_ segments: [String], targetSize: Int, separator: Int = 1) -> (segments: [String], size: Int) {
+    static func calculateOverlap(
+        _ segments: [String],
+        targetSize: Int,
+        separator: Int = 1
+    ) -> (segments: [String], size: Int) {
         var overlapSegments: [String] = []
         var overlapSize = 0
 
