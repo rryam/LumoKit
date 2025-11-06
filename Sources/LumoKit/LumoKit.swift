@@ -145,7 +145,7 @@ public final class LumoKit {
     }
 }
 
-public enum LumoKitError: Error {
+public enum LumoKitError: Error, Equatable {
     /// Thrown when the document has no valid content to parse.
     case emptyDocument
 
@@ -162,4 +162,18 @@ public enum LumoKitError: Error {
     /// - strategy: The name of the chunking strategy that failed
     /// - underlyingError: The underlying error that caused the failure
     case chunkingFailed(strategy: String, underlyingError: Error)
+    
+    public static func == (lhs: LumoKitError, rhs: LumoKitError) -> Bool {
+        switch (lhs, rhs) {
+        case (.emptyDocument, .emptyDocument),
+             (.invalidChunkSize, .invalidChunkSize),
+             (.invalidURL, .invalidURL),
+             (.fileNotFound, .fileNotFound):
+            return true
+        case (.chunkingFailed(let lhsStrategy, _), .chunkingFailed(let rhsStrategy, _)):
+            return lhsStrategy == rhsStrategy
+        default:
+            return false
+        }
+    }
 }
