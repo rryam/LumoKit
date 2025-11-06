@@ -70,7 +70,10 @@ struct ChunkingHelper {
         return LumoKitError.chunkingFailed(strategy: strategyName, underlyingError: error)
     }
 
-    /// Creates a chunk from segments with ranges
+    /// Creates a chunk from segments with ranges.
+    ///
+    /// Builds chunk text without intermediate array allocations.
+    ///
     /// - Parameters:
     ///   - segments: Array of text segments with their ranges
     ///   - separator: String separator to join segments (e.g., " ", "\n", "\n\n")
@@ -98,7 +101,15 @@ struct ChunkingHelper {
         let firstRange = rangeExtractor(firstSegment)
         let lastRange = rangeExtractor(lastSegment)
 
-        let chunkText = segments.map(textExtractor).joined(separator: separator)
+        // Build chunk text without intermediate array allocations
+        var chunkText = ""
+        for (idx, segment) in segments.enumerated() {
+            if idx > 0 {
+                chunkText += separator
+            }
+            chunkText += textExtractor(segment)
+        }
+
         let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
         let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 

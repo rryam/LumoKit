@@ -1,7 +1,7 @@
 import Foundation
 import NaturalLanguage
 
-/// Semantic chunking strategy with intelligent boundary detection
+/// Semantic chunking strategy with content-aware boundary detection
 /// This strategy adapts to content type and uses natural language boundaries
 struct SemanticChunker: ChunkingStrategy {
     func chunk(text: String, config: ChunkingConfig) throws -> [Chunk] {
@@ -26,7 +26,7 @@ struct SemanticChunker: ChunkingStrategy {
 
     private func chunkProse(text: String, config: ChunkingConfig) throws -> [Chunk] {
         // For prose, ParagraphChunker is preferred as it respects paragraph boundaries.
-        // It intelligently falls back to SentenceChunker if no paragraphs are found.
+        // Falls back to SentenceChunker if no paragraphs are found.
         do {
             return try ParagraphChunker().chunk(text: text, config: config)
         } catch {
@@ -36,8 +36,17 @@ struct SemanticChunker: ChunkingStrategy {
 
     // MARK: - Code Chunking
 
+    /// Chunks code by grouping lines into logical blocks separated by blank lines.
+    ///
+    /// Groups consecutive non-empty lines into blocks, respects chunk size limits,
+    /// and splits oversized blocks line-by-line. Preserves last 3 lines for overlap.
+    ///
+    /// - Parameters:
+    ///   - text: The code text to chunk
+    ///   - config: Chunking configuration
+    /// - Returns: Array of chunks preserving code structure
+    /// - Throws: `LumoKitError.chunkingFailed` if chunking fails
     private func chunkCode(text: String, config: ChunkingConfig) throws -> [Chunk] {
-        // For code, respect logical blocks (functions, classes, etc.)
         let lines = splitLinesWithRanges(from: text)
         let blocks = groupCodeIntoLogicalBlocks(lines)
 
@@ -46,8 +55,14 @@ struct SemanticChunker: ChunkingStrategy {
         var currentSize = 0
 
         for (idx, block) in blocks.enumerated() {
-            let blockText = block.map { $0.line }.joined(separator: ChunkingHelper.Constants.lineSeparator)
-            let blockSize = blockText.count
+            // Calculate block size without creating intermediate string
+            var blockSize = 0
+            for (lineIdx, lineData) in block.enumerated() {
+                if lineIdx > 0 {
+                    blockSize += ChunkingHelper.Constants.lineSeparatorSize
+                }
+                blockSize += lineData.line.count
+            }
 
             if blockSize > config.chunkSize {
                 // Flush current
@@ -87,7 +102,14 @@ struct SemanticChunker: ChunkingStrategy {
                 if config.overlapSize > 0 && idx < blocks.count - 1 {
                     let overlapLines = currentBlock.suffix(min(ChunkingHelper.Constants.codeOverlapLineCount, currentBlock.count))
                     currentBlock = Array(overlapLines)
-                    currentSize = currentBlock.map { $0.line }.joined(separator: ChunkingHelper.Constants.lineSeparator).count
+                    // Calculate size without creating intermediate string
+                    currentSize = 0
+                    for (lineIdx, lineData) in currentBlock.enumerated() {
+                        if lineIdx > 0 {
+                            currentSize += ChunkingHelper.Constants.lineSeparatorSize
+                        }
+                        currentSize += lineData.line.count
+                    }
                 } else {
                     currentBlock = []
                     currentSize = 0
@@ -113,6 +135,16 @@ struct SemanticChunker: ChunkingStrategy {
 
     // MARK: - Markdown Chunking
 
+    /// Chunks markdown by splitting on header lines (starting with `#`).
+    ///
+    /// Sections are determined by headers, accumulated until size limit,
+    /// and oversized sections fall back to sentence chunking.
+    ///
+    /// - Parameters:
+    ///   - text: The markdown text to chunk
+    ///   - config: Chunking configuration
+    /// - Returns: Array of chunks preserving markdown structure
+    /// - Throws: `LumoKitError.chunkingFailed` if chunking fails
     private func chunkMarkdown(text: String, config: ChunkingConfig) throws -> [Chunk] {
         let sections = extractMarkdownSections(from: text)
 
@@ -212,6 +244,16 @@ struct SemanticChunker: ChunkingStrategy {
 
     // MARK: - Mixed Content Chunking
 
+    /// Chunks mixed content by separating code blocks (```) from prose.
+    ///
+    /// Detects code fences, chunks each segment with appropriate strategy,
+    /// and adjusts position offsets across boundaries.
+    ///
+    /// - Parameters:
+    ///   - text: The mixed content text to chunk
+    ///   - config: Chunking configuration
+    /// - Returns: Array of chunks with preserved content types
+    /// - Throws: `LumoKitError.chunkingFailed` if chunking fails
     private func chunkMixed(text: String, config: ChunkingConfig) throws -> [Chunk] {
         // Detect code blocks and split accordingly
         let segments = separateCodeAndProse(text)
@@ -428,7 +470,14 @@ private extension SemanticChunker {
                 if !currentSection.isEmpty,
                    let firstRange = currentSection.first?.range,
                    let lastRange = currentSection.last?.range {
-                    let sectionText = currentSection.map { $0.line }.joined(separator: ChunkingHelper.Constants.lineSeparator)
+                    // Build section text without intermediate array
+                    var sectionText = ""
+                    for (lineIdx, sectionLine) in currentSection.enumerated() {
+                        if lineIdx > 0 {
+                            sectionText += ChunkingHelper.Constants.lineSeparator
+                        }
+                        sectionText += sectionLine.line
+                    }
                     sections.append((sectionText, firstRange.lowerBound..<lastRange.upperBound))
                 }
                 currentSection = [lineData]
@@ -440,7 +489,14 @@ private extension SemanticChunker {
         if !currentSection.isEmpty,
            let firstRange = currentSection.first?.range,
            let lastRange = currentSection.last?.range {
-            let sectionText = currentSection.map { $0.line }.joined(separator: "\n")
+            // Build section text without intermediate array
+            var sectionText = ""
+            for (lineIdx, sectionLine) in currentSection.enumerated() {
+                if lineIdx > 0 {
+                    sectionText += ChunkingHelper.Constants.lineSeparator
+                }
+                sectionText += sectionLine.line
+            }
             sections.append((sectionText, firstRange.lowerBound..<lastRange.upperBound))
         }
 
@@ -462,8 +518,16 @@ private extension SemanticChunker {
                 if !currentContent.isEmpty,
                    let firstRange = currentContent.first?.range,
                    let lastRange = currentContent.last?.range {
+                    // Build content text without intermediate array
+                    var contentText = ""
+                    for (lineIdx, contentLine) in currentContent.enumerated() {
+                        if lineIdx > 0 {
+                            contentText += ChunkingHelper.Constants.lineSeparator
+                        }
+                        contentText += contentLine.line
+                    }
                     segments.append(ContentSegment(
-                        content: currentContent.map { $0.line }.joined(separator: ChunkingHelper.Constants.lineSeparator),
+                        content: contentText,
                         range: firstRange.lowerBound..<lastRange.upperBound,
                         isCode: inCodeBlock
                     ))
@@ -479,8 +543,16 @@ private extension SemanticChunker {
         if !currentContent.isEmpty,
            let firstRange = currentContent.first?.range,
            let lastRange = currentContent.last?.range {
+            // Build content text without intermediate array
+            var contentText = ""
+            for (lineIdx, contentLine) in currentContent.enumerated() {
+                if lineIdx > 0 {
+                    contentText += ChunkingHelper.Constants.lineSeparator
+                }
+                contentText += contentLine.line
+            }
             segments.append(ContentSegment(
-                content: currentContent.map { $0.line }.joined(separator: "\n"),
+                content: contentText,
                 range: firstRange.lowerBound..<lastRange.upperBound,
                 isCode: inCodeBlock
             ))

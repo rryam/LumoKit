@@ -32,7 +32,14 @@ struct WordChunker: ChunkingStrategy {
                       let lastRange = currentWords.last?.range else {
                     continue
                 }
-                let chunkText = currentWords.map { $0.word }.joined(separator: ChunkingHelper.Constants.spaceSeparator)
+                // Build chunk text without intermediate array
+                var chunkText = ""
+                for (wordIdx, wordData) in currentWords.enumerated() {
+                    if wordIdx > 0 {
+                        chunkText += ChunkingHelper.Constants.spaceSeparator
+                    }
+                    chunkText += wordData.word
+                }
                 let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
                 let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 
@@ -69,7 +76,14 @@ struct WordChunker: ChunkingStrategy {
         if !currentWords.isEmpty,
            let firstRange = currentWords.first?.range,
            let lastRange = currentWords.last?.range {
-            let chunkText = currentWords.map { $0.word }.joined(separator: " ")
+            // Build chunk text without intermediate array
+            var chunkText = ""
+            for (wordIdx, wordData) in currentWords.enumerated() {
+                if wordIdx > 0 {
+                    chunkText += ChunkingHelper.Constants.spaceSeparator
+                }
+                chunkText += wordData.word
+            }
             let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
             let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 

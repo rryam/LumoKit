@@ -119,8 +119,8 @@ let vecturaConfig = VecturaConfig(
 let chunkingConfig = ChunkingConfig(
     chunkSize: 500,
     overlapPercentage: 0.15,  // 15% overlap between chunks
-    strategy: .semantic,  // Intelligent content-aware chunking
-    contentType: .prose  // Optimize for prose text
+    strategy: .semantic,  // Content-aware chunking
+    contentType: .prose  // For prose text
 )
 
 // Initialize LumoKit
@@ -177,7 +177,7 @@ let config = ChunkingConfig(
 
 ### Semantic Chunking (`.semantic`) - Recommended
 
-Intelligently adapts to content type with specialized handling for different text types:
+Adapts to content type with specialized handling for different text types:
 
 **For Prose:**
 ```swift
@@ -226,7 +226,7 @@ ChunkingConfig(chunkSize: 500, overlapPercentage: 0.2)
 // Medium overlap (10-15%) - balanced approach
 ChunkingConfig(chunkSize: 500, overlapPercentage: 0.15)
 
-// No overlap (0%) - maximum efficiency
+// No overlap (0%) - maximum chunk count
 ChunkingConfig(chunkSize: 500, overlapPercentage: 0.0)
 ```
 

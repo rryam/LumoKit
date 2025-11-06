@@ -41,7 +41,7 @@ public enum ChunkingStrategyType {
     /// Paragraph-based chunking
     case paragraph
 
-    /// Semantic chunking with intelligent boundary detection (recommended)
+    /// Semantic chunking with content-aware boundary detection (recommended)
     case semantic
 }
 
