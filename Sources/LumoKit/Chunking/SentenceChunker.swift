@@ -27,24 +27,8 @@ struct SentenceChunker: ChunkingStrategy {
             // If a single sentence exceeds chunk size, split it by words
             if sentenceSize > config.chunkSize {
                 // Flush current chunk if any
-                if !currentSentences.isEmpty,
-                   let firstRange = currentSentences.first?.range,
-                   let lastRange = currentSentences.last?.range {
-                    let chunkText = currentSentences.map { $0.text }.joined(separator: " ")
-                    let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                    let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-                    let metadata = ChunkMetadata(
-                        index: chunks.count,
-                        startPosition: startPos,
-                        endPosition: endPos,
-                        hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
-                        hasOverlapWithNext: true,
-                        contentType: config.contentType,
-                        source: nil
-                    )
-                    chunks.append(Chunk(text: chunkText, metadata: metadata))
-
+                if !currentSentences.isEmpty {
+                    flushChunk(from: currentSentences, to: &chunks, text: text, config: config, hasNext: true)
                     currentSentences = []
                     currentSize = 0
                 }
@@ -69,28 +53,19 @@ struct SentenceChunker: ChunkingStrategy {
             }
 
             // Check if adding this sentence would exceed the chunk size
-            if currentSize + sentenceSize > config.chunkSize && !currentSentences.isEmpty,
-               let firstRange = currentSentences.first?.range,
-               let lastRange = currentSentences.last?.range {
-                let chunkText = currentSentences.map { $0.text }.joined(separator: " ")
-                let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-                let metadata = ChunkMetadata(
-                    index: chunks.count,
-                    startPosition: startPos,
-                    endPosition: endPos,
-                    hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
-                    hasOverlapWithNext: idx < sentences.count - 1,
-                    contentType: config.contentType,
-                    source: nil
+            if currentSize + sentenceSize > config.chunkSize && !currentSentences.isEmpty {
+                flushChunk(
+                    from: currentSentences,
+                    to: &chunks,
+                    text: text,
+                    config: config,
+                    hasNext: idx < sentences.count - 1
                 )
-                chunks.append(Chunk(text: chunkText, metadata: metadata))
 
                 // Handle overlap
                 if config.overlapSize > 0 && idx < sentences.count - 1 {
-                    let overlap = calculateOverlap(currentSentences.map { $0.text }, targetSize: config.overlapSize)
-                    let overlapCount = overlap.sentences.count
+                    let overlap = ChunkingHelper.calculateOverlap(currentSentences.map { $0.text }, targetSize: config.overlapSize)
+                    let overlapCount = overlap.segments.count
                     currentSentences = Array(currentSentences.suffix(overlapCount))
                     currentSize = overlap.size
                 } else {
@@ -107,23 +82,8 @@ struct SentenceChunker: ChunkingStrategy {
         }
 
         // Add remaining sentences as final chunk
-        if !currentSentences.isEmpty,
-           let firstRange = currentSentences.first?.range,
-           let lastRange = currentSentences.last?.range {
-            let chunkText = currentSentences.map { $0.text }.joined(separator: " ")
-            let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-            let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-            let metadata = ChunkMetadata(
-                index: chunks.count,
-                startPosition: startPos,
-                endPosition: endPos,
-                hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
-                hasOverlapWithNext: false,
-                contentType: config.contentType,
-                source: nil
-            )
-            chunks.append(Chunk(text: chunkText, metadata: metadata))
+        if !currentSentences.isEmpty {
+            flushChunk(from: currentSentences, to: &chunks, text: text, config: config, hasNext: false)
         }
 
         return chunks
@@ -145,19 +105,32 @@ struct SentenceChunker: ChunkingStrategy {
         return sentences
     }
 
-    private func calculateOverlap(_ sentences: [String], targetSize: Int) -> (sentences: [String], size: Int) {
-        var overlapSentences: [String] = []
-        var overlapSize = 0
-
-        for sentence in sentences.reversed() {
-            if overlapSize + sentence.count <= targetSize {
-                overlapSentences.insert(sentence, at: 0)
-                overlapSize += sentence.count + (overlapSentences.count > 1 ? 1 : 0)
-            } else {
-                break
-            }
+    private func flushChunk(
+        from sentences: [(text: String, range: Range<String.Index>)],
+        to chunks: inout [Chunk],
+        text: String,
+        config: ChunkingConfig,
+        hasNext: Bool
+    ) {
+        guard let firstRange = sentences.first?.range,
+              let lastRange = sentences.last?.range else {
+            return
         }
 
-        return (overlapSentences, overlapSize)
+        let chunkText = sentences.map { $0.text }.joined(separator: " ")
+        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
+
+        let metadata = ChunkMetadata(
+            index: chunks.count,
+            startPosition: startPos,
+            endPosition: endPos,
+            hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
+            hasOverlapWithNext: hasNext,
+            contentType: config.contentType,
+            source: nil
+        )
+        chunks.append(Chunk(text: chunkText, metadata: metadata))
     }
+
 }

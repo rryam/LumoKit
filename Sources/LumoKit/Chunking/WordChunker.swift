@@ -40,7 +40,7 @@ struct WordChunker: ChunkingStrategy {
                     index: chunks.count,
                     startPosition: startPos,
                     endPosition: endPos,
-                    hasOverlapWithPrevious: false,
+                    hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
                     hasOverlapWithNext: idx < words.count - 1,
                     contentType: config.contentType,
                     source: nil
@@ -48,9 +48,15 @@ struct WordChunker: ChunkingStrategy {
 
                 chunks.append(Chunk(text: chunkText, metadata: metadata))
 
-                // Start new chunk
-                currentWords = []
-                currentSize = 0
+                // Handle overlap
+                if config.overlapSize > 0 && idx < words.count - 1 {
+                    let overlap = calculateOverlap(currentWords, targetSize: config.overlapSize)
+                    currentWords = overlap.words
+                    currentSize = overlap.size
+                } else {
+                    currentWords = []
+                    currentSize = 0
+                }
             }
 
             currentWords.append(wordData)
@@ -69,7 +75,7 @@ struct WordChunker: ChunkingStrategy {
                 index: chunks.count,
                 startPosition: startPos,
                 endPosition: endPos,
-                hasOverlapWithPrevious: false,
+                hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
                 hasOverlapWithNext: false,
                 contentType: config.contentType,
                 source: nil
@@ -79,5 +85,21 @@ struct WordChunker: ChunkingStrategy {
         }
 
         return chunks
+    }
+
+    private func calculateOverlap(_ words: [(word: String, range: Range<String.Index>)], targetSize: Int) -> (words: [(word: String, range: Range<String.Index>)], size: Int) {
+        var overlapWords: [(word: String, range: Range<String.Index>)] = []
+        var overlapSize = 0
+
+        for wordData in words.reversed() {
+            if overlapSize + wordData.word.count <= targetSize {
+                overlapWords.insert(wordData, at: 0)
+                overlapSize += wordData.word.count + (overlapWords.count > 1 ? 1 : 0)
+            } else {
+                break
+            }
+        }
+
+        return (overlapWords, overlapSize)
     }
 }

@@ -62,27 +62,22 @@ struct SemanticChunker: ChunkingStrategy {
                     chunks.append(createChunk(
                         text: chunkText,
                         index: chunks.count,
-                        startPosition: startPos,
-                        endPosition: endPos,
-                        config: config
+                        position: ChunkPosition(start: startPos, end: endPos),
+                        config: config,
+                        hasNext: true
                     ))
                     currentBlock = []
                     currentSize = 0
                 }
 
                 // Split large block by lines
-                if let firstRange = block.first?.range,
-                   let lastRange = block.last?.range {
-                    let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                    let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-                    chunks.append(createChunk(
-                        text: blockText,
-                        index: chunks.count,
-                        startPosition: startPos,
-                        endPosition: endPos,
-                        config: config
-                    ))
-                }
+                splitOversizedBlock(
+                    block: block,
+                    text: text,
+                    config: config,
+                    chunks: &chunks,
+                    hasMoreBlocks: idx < blocks.count - 1
+                )
                 continue
             }
 
@@ -96,9 +91,9 @@ struct SemanticChunker: ChunkingStrategy {
                 chunks.append(createChunk(
                     text: chunkText,
                     index: chunks.count,
-                    startPosition: startPos,
-                    endPosition: endPos,
-                    config: config
+                    position: ChunkPosition(start: startPos, end: endPos),
+                    config: config,
+                    hasNext: idx < blocks.count - 1
                 ))
 
                 // Overlap handling for code
@@ -126,9 +121,9 @@ struct SemanticChunker: ChunkingStrategy {
             chunks.append(createChunk(
                 text: chunkText,
                 index: chunks.count,
-                startPosition: startPos,
-                endPosition: endPos,
-                config: config
+                position: ChunkPosition(start: startPos, end: endPos),
+                config: config,
+                hasNext: false
             ))
         }
 
@@ -159,9 +154,9 @@ struct SemanticChunker: ChunkingStrategy {
                     chunks.append(createChunk(
                         text: chunkText,
                         index: chunks.count,
-                        startPosition: startPos,
-                        endPosition: endPos,
-                        config: config
+                        position: ChunkPosition(start: startPos, end: endPos),
+                        config: config,
+                        hasNext: true
                     ))
                     currentSections = []
                     currentSize = 0
@@ -170,7 +165,7 @@ struct SemanticChunker: ChunkingStrategy {
                 // Use sentence chunking for large sections
                 let sentenceChunks = try SentenceChunker().chunk(text: sectionData.section, config: config)
                 let baseOffset = text.distance(from: text.startIndex, to: sectionData.range.lowerBound)
-                for sentenceChunk in sentenceChunks {
+                for (sentenceIdx, sentenceChunk) in sentenceChunks.enumerated() {
                     chunks.append(Chunk(
                         text: sentenceChunk.text,
                         metadata: ChunkMetadata(
@@ -178,7 +173,7 @@ struct SemanticChunker: ChunkingStrategy {
                             startPosition: baseOffset + sentenceChunk.metadata.startPosition,
                             endPosition: baseOffset + sentenceChunk.metadata.endPosition,
                             hasOverlapWithPrevious: chunks.count > 0,
-                            hasOverlapWithNext: true,
+                            hasOverlapWithNext: sentenceIdx < sentenceChunks.count - 1 || idx < sections.count - 1,
                             contentType: .markdown,
                             source: nil
                         )
@@ -197,15 +192,28 @@ struct SemanticChunker: ChunkingStrategy {
                 chunks.append(createChunk(
                     text: chunkText,
                     index: chunks.count,
-                    startPosition: startPos,
-                    endPosition: endPos,
-                    config: config
+                    position: ChunkPosition(start: startPos, end: endPos),
+                    config: config,
+                    hasNext: idx < sections.count - 1
                 ))
 
                 if config.overlapSize > 0 && idx < sections.count - 1 {
-                    let overlap = currentSections.suffix(1)
-                    currentSections = Array(overlap)
-                    currentSize = currentSections.map { $0.section }.joined(separator: "\n\n").count
+                    // Calculate overlap based on target size
+                    var overlapSections: [(section: String, range: Range<String.Index>)] = []
+                    var overlapSize = 0
+
+                    for section in currentSections.reversed() {
+                        let sectionLength = section.section.count
+                        if overlapSize + sectionLength <= config.overlapSize {
+                            overlapSections.insert(section, at: 0)
+                            overlapSize += sectionLength + (overlapSections.count > 1 ? 2 : 0)
+                        } else {
+                            break
+                        }
+                    }
+
+                    currentSections = overlapSections
+                    currentSize = overlapSize
                 } else {
                     currentSections = []
                     currentSize = 0
@@ -226,9 +234,9 @@ struct SemanticChunker: ChunkingStrategy {
             chunks.append(createChunk(
                 text: chunkText,
                 index: chunks.count,
-                startPosition: startPos,
-                endPosition: endPos,
-                config: config
+                position: ChunkPosition(start: startPos, end: endPos),
+                config: config,
+                hasNext: false
             ))
         }
 
@@ -243,7 +251,7 @@ struct SemanticChunker: ChunkingStrategy {
 
         var chunks: [Chunk] = []
 
-        for segment in segments {
+        for (segmentIdx, segment) in segments.enumerated() {
             let segmentConfig = ChunkingConfig(
                 chunkSize: config.chunkSize,
                 overlapPercentage: config.overlapPercentage,
@@ -254,13 +262,14 @@ struct SemanticChunker: ChunkingStrategy {
             let segmentChunks = try chunk(text: segment.content, config: segmentConfig)
             let baseOffset = text.distance(from: text.startIndex, to: segment.range.lowerBound)
 
-            for segmentChunk in segmentChunks {
+            for (chunkIdx, segmentChunk) in segmentChunks.enumerated() {
+                let isLastChunkOfLastSegment = segmentIdx == segments.count - 1 && chunkIdx == segmentChunks.count - 1
                 let adjustedMetadata = ChunkMetadata(
                     index: chunks.count,
                     startPosition: baseOffset + segmentChunk.metadata.startPosition,
                     endPosition: baseOffset + segmentChunk.metadata.endPosition,
                     hasOverlapWithPrevious: chunks.count > 0,
-                    hasOverlapWithNext: true,
+                    hasOverlapWithNext: !isLastChunkOfLastSegment,
                     contentType: segment.isCode ? .code : .prose,
                     source: nil
                 )
@@ -272,6 +281,57 @@ struct SemanticChunker: ChunkingStrategy {
     }
 
     // MARK: - Helper Methods
+
+    private func splitOversizedBlock(
+        block: [(line: String, range: Range<String.Index>)],
+        text: String,
+        config: ChunkingConfig,
+        chunks: inout [Chunk],
+        hasMoreBlocks: Bool
+    ) {
+        var lineChunk: [(line: String, range: Range<String.Index>)] = []
+        var lineChunkSize = 0
+
+        for (lineIdx, line) in block.enumerated() {
+            let lineSize = line.line.count
+            if lineChunkSize + lineSize > config.chunkSize && !lineChunk.isEmpty {
+                // Flush accumulated lines
+                if let firstRange = lineChunk.first?.range,
+                   let lastRange = lineChunk.last?.range {
+                    let chunkText = lineChunk.map { $0.line }.joined(separator: "\n")
+                    let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+                    let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
+                    chunks.append(createChunk(
+                        text: chunkText,
+                        index: chunks.count,
+                        position: ChunkPosition(start: startPos, end: endPos),
+                        config: config,
+                        hasNext: lineIdx < block.count - 1 || hasMoreBlocks
+                    ))
+                }
+                lineChunk = []
+                lineChunkSize = 0
+            }
+            lineChunk.append(line)
+            lineChunkSize += lineSize + (lineChunk.count > 1 ? 1 : 0)
+        }
+
+        // Flush remaining lines
+        if !lineChunk.isEmpty,
+           let firstRange = lineChunk.first?.range,
+           let lastRange = lineChunk.last?.range {
+            let chunkText = lineChunk.map { $0.line }.joined(separator: "\n")
+            let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+            let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
+            chunks.append(createChunk(
+                text: chunkText,
+                index: chunks.count,
+                position: ChunkPosition(start: startPos, end: endPos),
+                config: config,
+                hasNext: hasMoreBlocks
+            ))
+        }
+    }
 
     private func splitLinesWithRanges(from text: String) -> [(line: String, range: Range<String.Index>)] {
         var result: [(line: String, range: Range<String.Index>)] = []
@@ -396,7 +456,7 @@ struct SemanticChunker: ChunkingStrategy {
                     currentContent = []
                 }
                 inCodeBlock.toggle()
-                currentContent.append(lineData)
+                // Don't include the fence line in content
             } else {
                 currentContent.append(lineData)
             }
@@ -417,19 +477,24 @@ struct SemanticChunker: ChunkingStrategy {
             : segments
     }
 
+    private struct ChunkPosition {
+        let start: Int
+        let end: Int
+    }
+
     private func createChunk(
         text: String,
         index: Int,
-        startPosition: Int,
-        endPosition: Int,
-        config: ChunkingConfig
+        position: ChunkPosition,
+        config: ChunkingConfig,
+        hasNext: Bool
     ) -> Chunk {
         let metadata = ChunkMetadata(
             index: index,
-            startPosition: startPosition,
-            endPosition: endPosition,
+            startPosition: position.start,
+            endPosition: position.end,
             hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: false,
+            hasOverlapWithNext: hasNext,
             contentType: config.contentType,
             source: nil
         )

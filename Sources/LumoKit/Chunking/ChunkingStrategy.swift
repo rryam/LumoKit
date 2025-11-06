@@ -32,4 +32,26 @@ struct ChunkingHelper {
             throw LumoKitError.invalidChunkSize
         }
     }
+
+    /// Calculate overlap for text segments
+    /// - Parameters:
+    ///   - segments: Array of text segments
+    ///   - targetSize: Target size for overlap in characters
+    ///   - separator: Separator size between segments (default: 1 for space)
+    /// - Returns: Tuple of overlapping segments and their total size
+    static func calculateOverlap(_ segments: [String], targetSize: Int, separator: Int = 1) -> (segments: [String], size: Int) {
+        var overlapSegments: [String] = []
+        var overlapSize = 0
+
+        for segment in segments.reversed() {
+            if overlapSize + segment.count <= targetSize {
+                overlapSegments.insert(segment, at: 0)
+                overlapSize += segment.count + (overlapSegments.count > 1 ? separator : 0)
+            } else {
+                break
+            }
+        }
+
+        return (overlapSegments, overlapSize)
+    }
 }

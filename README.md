@@ -119,8 +119,8 @@ let vecturaConfig = VecturaConfig(
 let chunkingConfig = ChunkingConfig(
     chunkSize: 500,
     overlapPercentage: 0.15,  // 15% overlap between chunks
-    strategy: .semantic,       // Intelligent content-aware chunking
-    contentType: .prose        // Optimize for prose text
+    strategy: .semantic,  // Intelligent content-aware chunking
+    contentType: .prose  // Optimize for prose text
 )
 
 // Initialize LumoKit
@@ -301,10 +301,13 @@ let folder = URL(fileURLWithPath: "/path/to/docs")
 let fileManager = FileManager.default
 let exts: Set<String> = ["pdf", "md", "markdown", "html", "txt"]
 
-if let urls = try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
+do {
+    let urls = try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
     for url in urls where exts.contains(url.pathExtension.lowercased()) {
         try await lumoKit.parseAndIndex(url: url)
     }
+} catch {
+    print("Error reading directory: \(error)")
 }
 ```
 
