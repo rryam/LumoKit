@@ -40,11 +40,9 @@ public final class LumoKit {
     public init(config: VecturaConfig, chunkingConfig: ChunkingConfig = ChunkingConfig()) async throws
 
     public func parseAndIndex(url: URL, chunkingConfig: ChunkingConfig? = nil) async throws
-    public func parseDocument(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [String]
-    public func parseDocumentWithMetadata(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [Chunk]
+    public func parseDocument(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [Chunk]
 
-    public func chunkText(_ text: String, config: ChunkingConfig) throws -> [String]
-    public func chunkTextWithMetadata(_ text: String, config: ChunkingConfig) throws -> [Chunk]
+    public func chunkText(_ text: String, config: ChunkingConfig) throws -> [Chunk]
 
     public func semanticSearch(
         query: String,
@@ -65,6 +63,11 @@ public struct ChunkingConfig {
 public enum LumoKitError: Error {
     case emptyDocument
     case invalidChunkSize
+    case invalidURL
+    case fileNotFound
+    case unsupportedFileType
+    case invalidSearchParameters
+    case chunkingFailed(strategy: String, underlyingError: Error)
 }
 ```
 
@@ -260,18 +263,14 @@ for (filename, contentType) in urls {
 let url = URL(fileURLWithPath: "/path/to/paper.pdf")
 let chunks = try await lumoKit.parseDocument(from: url)
 print("Created \(chunks.count) chunks")
-```
 
-### Access Chunk Metadata
-
-```swift
-let url = URL(fileURLWithPath: "/path/to/paper.pdf")
-let chunks = try await lumoKit.parseDocumentWithMetadata(from: url)
-
+// Access chunk metadata
 for chunk in chunks {
     print("Chunk \(chunk.metadata.index)")
     print("Position: \(chunk.metadata.startPosition)-\(chunk.metadata.endPosition)")
     print("Has overlap: \(chunk.metadata.hasOverlapWithPrevious)")
+    print("Source: \(chunk.metadata.source ?? "unknown")")
+    print("Content type: \(chunk.metadata.contentType)")
     print("Content: \(chunk.text)")
 }
 ```
@@ -327,6 +326,14 @@ do {
     print("Document is empty")
 } catch LumoKitError.invalidChunkSize {
     print("Invalid chunk size")
+} catch LumoKitError.invalidURL {
+    print("Invalid file URL")
+} catch LumoKitError.fileNotFound {
+    print("File not found")
+} catch LumoKitError.unsupportedFileType {
+    print("File type not supported")
+} catch LumoKitError.invalidSearchParameters {
+    print("Invalid search parameters")
 } catch {
     print("Error: \(error)")
 }
@@ -335,6 +342,11 @@ do {
 `LumoKitError` cases:
 - `.emptyDocument` – parsing produced no text content
 - `.invalidChunkSize` – chunk size must be greater than zero
+- `.invalidURL` – the provided URL is not a valid file URL
+- `.fileNotFound` – the file at the provided URL does not exist
+- `.unsupportedFileType` – the file type is not supported by PicoDocs
+- `.invalidSearchParameters` – search parameters are invalid (numResults <= 0 or threshold outside 0.0-1.0)
+- `.chunkingFailed(strategy: String, underlyingError: Error)` – chunking failed with context about which strategy failed
 
 ## Contributing
 
