@@ -25,14 +25,9 @@ struct SemanticChunker: ChunkingStrategy {
     // MARK: - Prose Chunking
 
     private func chunkProse(text: String, config: ChunkingConfig) throws -> [Chunk] {
-        // For prose, prefer paragraph boundaries, then sentences
-        let paragraphs = extractParagraphs(from: text)
-
-        if paragraphs.count > 1 {
-            return try ParagraphChunker().chunk(text: text, config: config)
-        } else {
-            return try SentenceChunker().chunk(text: text, config: config)
-        }
+        // For prose, ParagraphChunker is preferred as it respects paragraph boundaries.
+        // It intelligently falls back to SentenceChunker if no paragraphs are found.
+        return try ParagraphChunker().chunk(text: text, config: config)
     }
 
     // MARK: - Code Chunking
@@ -230,7 +225,7 @@ struct SemanticChunker: ChunkingStrategy {
                     index: chunks.count,
                     startPosition: baseOffset + segmentChunk.metadata.startPosition,
                     endPosition: baseOffset + segmentChunk.metadata.endPosition,
-                    hasOverlapWithPrevious: chunks.count > 0,
+                    hasOverlapWithPrevious: segmentChunk.metadata.hasOverlapWithPrevious,
                     hasOverlapWithNext: !isLastChunkOfLastSegment,
                     contentType: segment.isCode ? .code : .prose,
                     source: nil
@@ -382,29 +377,13 @@ private extension SemanticChunker {
 // MARK: - Text Extraction Helpers
 private extension SemanticChunker {
     func splitLinesWithRanges(from text: String) -> [(line: String, range: Range<String.Index>)] {
-        var lines: [(line: String, range: Range<String.Index>)] = []
-        var currentIndex = text.startIndex
-
-        text.enumerateLines { line, _ in
-            let endIndex = text.index(currentIndex, offsetBy: line.count, limitedBy: text.endIndex) ?? text.endIndex
-            let range = currentIndex..<endIndex
-            lines.append((line, range))
-
-            // Move past the line and newline
-            if endIndex < text.endIndex {
-                currentIndex = text.index(after: endIndex)
-            } else {
-                currentIndex = endIndex
+        var result: [(line: String, range: Range<String.Index>)] = []
+        text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: .byLines) { line, range, _, _ in
+            if let line = line {
+                result.append((line, range))
             }
         }
-
-        return lines
-    }
-
-    func extractParagraphs(from text: String) -> [String] {
-        text.components(separatedBy: "\n\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        return result
     }
 
     func groupCodeIntoLogicalBlocks(

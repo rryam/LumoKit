@@ -1,5 +1,6 @@
 import XCTest
 @testable import LumoKit
+import VecturaKit
 
 final class ChunkingTests: XCTestCase {
 
@@ -319,5 +320,56 @@ final class ChunkingTests: XCTestCase {
         XCTAssertThrowsError(try strategy.chunk(text: text, config: config)) { error in
             XCTAssertEqual(error as? LumoKitError, .invalidChunkSize)
         }
+    }
+
+    // MARK: - Public API Tests
+
+    func testLumoKitPublicAPI() async throws {
+        let config = VecturaConfig(name: "test-db")
+        let lumoKit = try await LumoKit(config: config)
+
+        let text = """
+        This is a test document with multiple sentences. It should be chunked properly.
+
+        Here's a second paragraph that adds more content for testing. The chunking should respect paragraph boundaries.
+        """
+
+        let chunkingConfig = ChunkingConfig(
+            chunkSize: 100,
+            overlapPercentage: 0.15,
+            strategy: .semantic,
+            contentType: .prose
+        )
+
+        // Test chunkText
+        let chunks = try lumoKit.chunkText(text, config: chunkingConfig)
+        XCTAssertFalse(chunks.isEmpty, "Should produce chunks from text")
+        XCTAssertGreaterThan(chunks.count, 0, "Should have at least one chunk")
+
+        // Test chunkTextWithMetadata
+        let chunksWithMetadata = try lumoKit.chunkTextWithMetadata(text, config: chunkingConfig)
+        XCTAssertEqual(chunks.count, chunksWithMetadata.count, "Should have same number of chunks")
+        XCTAssertEqual(chunks.first, chunksWithMetadata.first?.text, "Text content should match")
+
+        // Verify metadata
+        for (index, chunk) in chunksWithMetadata.enumerated() {
+            XCTAssertEqual(chunk.metadata.index, index, "Chunk index should match")
+            XCTAssertEqual(chunk.metadata.contentType, .prose, "Content type should be prose")
+            XCTAssertGreaterThanOrEqual(chunk.metadata.endPosition, chunk.metadata.startPosition)
+        }
+
+        // Cleanup
+        try await lumoKit.resetDB()
+    }
+
+    func testLumoKitStrategyFactory() {
+        let sentenceStrategy = ChunkingStrategyFactory.strategy(for: .sentence)
+        XCTAssertTrue(sentenceStrategy is SentenceChunker)
+
+        let paragraphStrategy = ChunkingStrategyFactory.strategy(for: .paragraph)
+        XCTAssertTrue(paragraphStrategy is ParagraphChunker)
+
+        let semanticStrategy = ChunkingStrategyFactory.strategy(for: .semantic)
+        XCTAssertTrue(semanticStrategy is SemanticChunker)
     }
 }
