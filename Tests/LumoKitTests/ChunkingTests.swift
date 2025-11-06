@@ -135,7 +135,9 @@ final class ChunkingTests: XCTestCase {
 
         let chunks = try strategy.chunk(text: text, config: config)
 
-        XCTAssertFalse(chunks.isEmpty, "Should produce chunks")
+        XCTAssertEqual(chunks.count, 2, "Should split into two logical blocks")
+        XCTAssertTrue(chunks[0].text.contains("func example()"))
+        XCTAssertTrue(chunks[1].text.contains("func another()"))
         XCTAssertEqual(chunks.first?.metadata.contentType, .code)
     }
 
@@ -178,7 +180,7 @@ final class ChunkingTests: XCTestCase {
         More prose after the code block.
         """
         let config = ChunkingConfig(
-            chunkSize: 150,
+            chunkSize: 80,
             strategy: .semantic,
             contentType: .mixed
         )
@@ -186,7 +188,14 @@ final class ChunkingTests: XCTestCase {
 
         let chunks = try strategy.chunk(text: text, config: config)
 
-        XCTAssertFalse(chunks.isEmpty, "Should handle mixed content")
+        XCTAssertGreaterThanOrEqual(chunks.count, 2, "Should handle mixed content by splitting it")
+
+        let proseChunks = chunks.filter { $0.metadata.contentType == .prose }
+        let codeChunks = chunks.filter { $0.metadata.contentType == .code }
+
+        XCTAssertFalse(proseChunks.isEmpty, "Should contain prose chunks")
+        XCTAssertFalse(codeChunks.isEmpty, "Should contain code chunks")
+        XCTAssertTrue(codeChunks[0].text.contains("func code()"))
     }
 
     // MARK: - Chunking Config Tests
