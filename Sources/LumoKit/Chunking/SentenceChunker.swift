@@ -18,7 +18,6 @@ struct SentenceChunker: ChunkingStrategy {
         var chunks: [Chunk] = []
         var currentSentences: [(text: String, range: Range<String.Index>)] = []
         var currentSize = 0
-        var chunkStartIndex: String.Index?
 
         for (idx, sentenceData) in sentences.enumerated() {
             let sentence = sentenceData.sentence
@@ -74,9 +73,6 @@ struct SentenceChunker: ChunkingStrategy {
                 }
             }
 
-            if chunkStartIndex == nil {
-                chunkStartIndex = sentenceData.range.lowerBound
-            }
             currentSentences.append((sentence, sentenceData.range))
             currentSize += sentenceSize + (currentSentences.count > 1 ? 1 : 0)
         }

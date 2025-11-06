@@ -265,6 +265,7 @@ print("Created \(chunks.count) chunks")
 ### Access Chunk Metadata
 
 ```swift
+let url = URL(fileURLWithPath: "/path/to/paper.pdf")
 let chunks = try await lumoKit.parseDocumentWithMetadata(from: url)
 
 for chunk in chunks {
@@ -304,7 +305,11 @@ let exts: Set<String> = ["pdf", "md", "markdown", "html", "txt"]
 do {
     let urls = try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
     for url in urls where exts.contains(url.pathExtension.lowercased()) {
-        try await lumoKit.parseAndIndex(url: url)
+        do {
+            try await lumoKit.parseAndIndex(url: url)
+        } catch {
+            print("Failed to index \(url.lastPathComponent): \(error)")
+        }
     }
 } catch {
     print("Error reading directory: \(error)")

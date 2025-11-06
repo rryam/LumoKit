@@ -52,20 +52,14 @@ struct SemanticChunker: ChunkingStrategy {
 
             if blockSize > config.chunkSize {
                 // Flush current
-                if !currentBlock.isEmpty,
-                   let firstRange = currentBlock.first?.range,
-                   let lastRange = currentBlock.last?.range {
-                    let chunkText = currentBlock.map { $0.line }.joined(separator: "\n")
-                    let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                    let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-                    chunks.append(createChunk(
-                        text: chunkText,
-                        index: chunks.count,
-                        position: ChunkPosition(start: startPos, end: endPos),
+                if !currentBlock.isEmpty {
+                    flushCodeBlock(
+                        from: currentBlock,
+                        to: &chunks,
+                        text: text,
                         config: config,
                         hasNext: true
-                    ))
+                    )
                     currentBlock = []
                     currentSize = 0
                 }
@@ -81,20 +75,14 @@ struct SemanticChunker: ChunkingStrategy {
                 continue
             }
 
-            if currentSize + blockSize > config.chunkSize && !currentBlock.isEmpty,
-               let firstRange = currentBlock.first?.range,
-               let lastRange = currentBlock.last?.range {
-                let chunkText = currentBlock.map { $0.line }.joined(separator: "\n")
-                let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-                chunks.append(createChunk(
-                    text: chunkText,
-                    index: chunks.count,
-                    position: ChunkPosition(start: startPos, end: endPos),
+            if currentSize + blockSize > config.chunkSize && !currentBlock.isEmpty {
+                flushCodeBlock(
+                    from: currentBlock,
+                    to: &chunks,
+                    text: text,
                     config: config,
                     hasNext: idx < blocks.count - 1
-                ))
+                )
 
                 // Overlap handling for code
                 if config.overlapSize > 0 && idx < blocks.count - 1 {
@@ -111,20 +99,14 @@ struct SemanticChunker: ChunkingStrategy {
             currentSize += blockSize + (currentBlock.count > 1 ? 1 : 0)
         }
 
-        if !currentBlock.isEmpty,
-           let firstRange = currentBlock.first?.range,
-           let lastRange = currentBlock.last?.range {
-            let chunkText = currentBlock.map { $0.line }.joined(separator: "\n")
-            let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-            let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-            chunks.append(createChunk(
-                text: chunkText,
-                index: chunks.count,
-                position: ChunkPosition(start: startPos, end: endPos),
+        if !currentBlock.isEmpty {
+            flushCodeBlock(
+                from: currentBlock,
+                to: &chunks,
+                text: text,
                 config: config,
                 hasNext: false
-            ))
+            )
         }
 
         return chunks
@@ -144,20 +126,14 @@ struct SemanticChunker: ChunkingStrategy {
 
             if sectionSize > config.chunkSize {
                 // Flush current
-                if !currentSections.isEmpty,
-                   let firstRange = currentSections.first?.range,
-                   let lastRange = currentSections.last?.range {
-                    let chunkText = currentSections.map { $0.section }.joined(separator: "\n\n")
-                    let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                    let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-                    chunks.append(createChunk(
-                        text: chunkText,
-                        index: chunks.count,
-                        position: ChunkPosition(start: startPos, end: endPos),
+                if !currentSections.isEmpty {
+                    flushMarkdownSections(
+                        from: currentSections,
+                        to: &chunks,
+                        text: text,
                         config: config,
                         hasNext: true
-                    ))
+                    )
                     currentSections = []
                     currentSize = 0
                 }
@@ -182,20 +158,14 @@ struct SemanticChunker: ChunkingStrategy {
                 continue
             }
 
-            if currentSize + sectionSize > config.chunkSize && !currentSections.isEmpty,
-               let firstRange = currentSections.first?.range,
-               let lastRange = currentSections.last?.range {
-                let chunkText = currentSections.map { $0.section }.joined(separator: "\n\n")
-                let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-                let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-                chunks.append(createChunk(
-                    text: chunkText,
-                    index: chunks.count,
-                    position: ChunkPosition(start: startPos, end: endPos),
+            if currentSize + sectionSize > config.chunkSize && !currentSections.isEmpty {
+                flushMarkdownSections(
+                    from: currentSections,
+                    to: &chunks,
+                    text: text,
                     config: config,
                     hasNext: idx < sections.count - 1
-                ))
+                )
 
                 if config.overlapSize > 0 && idx < sections.count - 1 {
                     // Calculate overlap based on target size
@@ -224,20 +194,14 @@ struct SemanticChunker: ChunkingStrategy {
             currentSize += sectionSize + (currentSections.count > 1 ? 2 : 0)
         }
 
-        if !currentSections.isEmpty,
-           let firstRange = currentSections.first?.range,
-           let lastRange = currentSections.last?.range {
-            let chunkText = currentSections.map { $0.section }.joined(separator: "\n\n")
-            let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-            let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
-
-            chunks.append(createChunk(
-                text: chunkText,
-                index: chunks.count,
-                position: ChunkPosition(start: startPos, end: endPos),
+        if !currentSections.isEmpty {
+            flushMarkdownSections(
+                from: currentSections,
+                to: &chunks,
+                text: text,
                 config: config,
                 hasNext: false
-            ))
+            )
         }
 
         return chunks
@@ -281,6 +245,56 @@ struct SemanticChunker: ChunkingStrategy {
     }
 
     // MARK: - Helper Methods
+
+    private func flushCodeBlock(
+        from lines: [(line: String, range: Range<String.Index>)],
+        to chunks: inout [Chunk],
+        text: String,
+        config: ChunkingConfig,
+        hasNext: Bool
+    ) {
+        guard let firstRange = lines.first?.range,
+              let lastRange = lines.last?.range else {
+            return
+        }
+
+        let chunkText = lines.map { $0.line }.joined(separator: "\n")
+        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
+
+        chunks.append(createChunk(
+            text: chunkText,
+            index: chunks.count,
+            position: ChunkPosition(start: startPos, end: endPos),
+            config: config,
+            hasNext: hasNext
+        ))
+    }
+
+    private func flushMarkdownSections(
+        from sections: [(section: String, range: Range<String.Index>)],
+        to chunks: inout [Chunk],
+        text: String,
+        config: ChunkingConfig,
+        hasNext: Bool
+    ) {
+        guard let firstRange = sections.first?.range,
+              let lastRange = sections.last?.range else {
+            return
+        }
+
+        let chunkText = sections.map { $0.section }.joined(separator: "\n\n")
+        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
+
+        chunks.append(createChunk(
+            text: chunkText,
+            index: chunks.count,
+            position: ChunkPosition(start: startPos, end: endPos),
+            config: config,
+            hasNext: hasNext
+        ))
+    }
 
     private func splitOversizedBlock(
         block: [(line: String, range: Range<String.Index>)],

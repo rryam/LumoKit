@@ -29,6 +29,7 @@ public final class LumoKit {
         )
 
         guard !chunks.isEmpty else {
+            print("LumoKit: No valid content to index from document at \(url.path).")
             return
         }
         _ = try await vectura.addDocuments(texts: chunks)

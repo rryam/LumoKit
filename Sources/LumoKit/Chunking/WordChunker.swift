@@ -50,8 +50,10 @@ struct WordChunker: ChunkingStrategy {
 
                 // Handle overlap
                 if config.overlapSize > 0 && idx < words.count - 1 {
-                    let overlap = calculateOverlap(currentWords, targetSize: config.overlapSize)
-                    currentWords = overlap.words
+                    let wordStrings = currentWords.map { $0.word }
+                    let overlap = ChunkingHelper.calculateOverlap(wordStrings, targetSize: config.overlapSize)
+                    let overlapCount = overlap.segments.count
+                    currentWords = Array(currentWords.suffix(overlapCount))
                     currentSize = overlap.size
                 } else {
                     currentWords = []
@@ -85,21 +87,5 @@ struct WordChunker: ChunkingStrategy {
         }
 
         return chunks
-    }
-
-    private func calculateOverlap(_ words: [(word: String, range: Range<String.Index>)], targetSize: Int) -> (words: [(word: String, range: Range<String.Index>)], size: Int) {
-        var overlapWords: [(word: String, range: Range<String.Index>)] = []
-        var overlapSize = 0
-
-        for wordData in words.reversed() {
-            if overlapSize + wordData.word.count <= targetSize {
-                overlapWords.insert(wordData, at: 0)
-                overlapSize += wordData.word.count + (overlapWords.count > 1 ? 1 : 0)
-            } else {
-                break
-            }
-        }
-
-        return (overlapWords, overlapSize)
     }
 }
