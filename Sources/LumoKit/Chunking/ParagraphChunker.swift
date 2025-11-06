@@ -12,7 +12,14 @@ struct ParagraphChunker: ChunkingStrategy {
         let paragraphs = extractParagraphs(from: text)
         guard !paragraphs.isEmpty else {
             // Fallback to sentence chunking if no paragraphs detected
-            return try SentenceChunker().chunk(text: text, config: config)
+            do {
+                return try SentenceChunker().chunk(text: text, config: config)
+            } catch {
+                throw ChunkingHelper.wrapChunkingError(
+                    error,
+                    strategyName: "ParagraphChunker (fallback to SentenceChunker)"
+                )
+            }
         }
 
         var chunks: [Chunk] = []
@@ -33,25 +40,31 @@ struct ParagraphChunker: ChunkingStrategy {
                 }
 
                 // Split long paragraph using sentence chunker
-                let sentenceChunks = try SentenceChunker().chunk(
-                    text: paragraph,
-                    config: config
-                )
-
-                for sentenceChunk in sentenceChunks {
-                    let baseOffset = text.distance(from: text.startIndex, to: paragraphData.range.lowerBound)
-                    let adjustedMetadata = ChunkMetadata(
-                        index: chunks.count,
-                        startPosition: baseOffset + sentenceChunk.metadata.startPosition,
-                        endPosition: baseOffset + sentenceChunk.metadata.endPosition,
-                        hasOverlapWithPrevious: chunks.count > 0,
-                        hasOverlapWithNext: true,
-                        contentType: config.contentType,
-                        source: nil
+                do {
+                    let sentenceChunks = try SentenceChunker().chunk(
+                        text: paragraph,
+                        config: config
                     )
-                    chunks.append(Chunk(text: sentenceChunk.text, metadata: adjustedMetadata))
+
+                    for sentenceChunk in sentenceChunks {
+                        let baseOffset = text.distance(from: text.startIndex, to: paragraphData.range.lowerBound)
+                        let adjustedMetadata = ChunkMetadata(
+                            index: chunks.count,
+                            startPosition: baseOffset + sentenceChunk.metadata.startPosition,
+                            endPosition: baseOffset + sentenceChunk.metadata.endPosition,
+                            hasOverlapWithPrevious: chunks.count > 0,
+                            hasOverlapWithNext: true,
+                            contentType: config.contentType,
+                            source: nil
+                        )
+                        chunks.append(Chunk(text: sentenceChunk.text, metadata: adjustedMetadata))
+                    }
+                } catch {
+                    throw ChunkingHelper.wrapChunkingError(
+                        error,
+                        strategyName: "ParagraphChunker (fallback to SentenceChunker for oversized paragraph)"
+                    )
                 }
-                continue
             }
 
             // Check if adding this paragraph would exceed the chunk size

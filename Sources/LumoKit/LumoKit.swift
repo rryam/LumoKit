@@ -19,10 +19,21 @@ public final class LumoKit {
     /// - Parameters:
     ///   - url: The file URL to parse
     ///   - chunkingConfig: Optional custom chunking configuration (uses default if not provided)
+    /// - Throws: `LumoKitError.invalidURL` if the URL is not a file URL
+    /// - Throws: `LumoKitError.fileNotFound` if the file does not exist
     public func parseAndIndex(
         url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws {
+        // Validate URL
+        guard url.isFileURL else {
+            throw LumoKitError.invalidURL
+        }
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw LumoKitError.fileNotFound
+        }
+
         let chunks = try await parseDocument(
             from: url,
             chunkingConfig: chunkingConfig
@@ -40,10 +51,21 @@ public final class LumoKit {
     ///   - url: The file URL to parse
     ///   - chunkingConfig: Optional custom chunking configuration (uses default if not provided)
     /// - Returns: Array of text chunks
+    /// - Throws: `LumoKitError.invalidURL` if the URL is not a file URL
+    /// - Throws: `LumoKitError.fileNotFound` if the file does not exist
     public func parseDocument(
         from url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws -> [String] {
+        // Validate URL
+        guard url.isFileURL else {
+            throw LumoKitError.invalidURL
+        }
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw LumoKitError.fileNotFound
+        }
+
         let doc = await PicoDocument(url: url)
         await doc.fetch()
         await doc.parse(to: .markdown)
@@ -61,10 +83,21 @@ public final class LumoKit {
     ///   - url: The file URL to parse
     ///   - chunkingConfig: Optional custom chunking configuration
     /// - Returns: Array of chunks with metadata
+    /// - Throws: `LumoKitError.invalidURL` if the URL is not a file URL
+    /// - Throws: `LumoKitError.fileNotFound` if the file does not exist
     public func parseDocumentWithMetadata(
         from url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws -> [Chunk] {
+        // Validate URL
+        guard url.isFileURL else {
+            throw LumoKitError.invalidURL
+        }
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw LumoKitError.fileNotFound
+        }
+
         let doc = await PicoDocument(url: url)
         await doc.fetch()
         await doc.parse(to: .markdown)
@@ -118,4 +151,15 @@ public enum LumoKitError: Error {
 
     /// Thrown when the specified chunk size is invalid (non-positive).
     case invalidChunkSize
+
+    /// Thrown when the provided URL is not a valid file URL.
+    case invalidURL
+
+    /// Thrown when the file at the provided URL does not exist.
+    case fileNotFound
+
+    /// Thrown when chunking fails, with context about which strategy failed.
+    /// - strategy: The name of the chunking strategy that failed
+    /// - underlyingError: The underlying error that caused the failure
+    case chunkingFailed(strategy: String, underlyingError: Error)
 }

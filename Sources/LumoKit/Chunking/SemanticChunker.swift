@@ -27,7 +27,11 @@ struct SemanticChunker: ChunkingStrategy {
     private func chunkProse(text: String, config: ChunkingConfig) throws -> [Chunk] {
         // For prose, ParagraphChunker is preferred as it respects paragraph boundaries.
         // It intelligently falls back to SentenceChunker if no paragraphs are found.
-        return try ParagraphChunker().chunk(text: text, config: config)
+        do {
+            return try ParagraphChunker().chunk(text: text, config: config)
+        } catch {
+            throw ChunkingHelper.wrapChunkingError(error, strategyName: "SemanticChunker.prose (via ParagraphChunker)")
+        }
     }
 
     // MARK: - Code Chunking
@@ -134,23 +138,29 @@ struct SemanticChunker: ChunkingStrategy {
                 }
 
                 // Use sentence chunking for large sections
-                let sentenceChunks = try SentenceChunker().chunk(text: sectionData.section, config: config)
-                let baseOffset = text.distance(from: text.startIndex, to: sectionData.range.lowerBound)
-                for (sentenceIdx, sentenceChunk) in sentenceChunks.enumerated() {
-                    chunks.append(Chunk(
-                        text: sentenceChunk.text,
-                        metadata: ChunkMetadata(
-                            index: chunks.count,
-                            startPosition: baseOffset + sentenceChunk.metadata.startPosition,
-                            endPosition: baseOffset + sentenceChunk.metadata.endPosition,
-                            hasOverlapWithPrevious: chunks.count > 0,
-                            hasOverlapWithNext: sentenceIdx < sentenceChunks.count - 1 || idx < sections.count - 1,
-                            contentType: .markdown,
-                            source: nil
-                        )
-                    ))
+                do {
+                    let sentenceChunks = try SentenceChunker().chunk(text: sectionData.section, config: config)
+                    let baseOffset = text.distance(from: text.startIndex, to: sectionData.range.lowerBound)
+                    for (sentenceIdx, sentenceChunk) in sentenceChunks.enumerated() {
+                        chunks.append(Chunk(
+                            text: sentenceChunk.text,
+                            metadata: ChunkMetadata(
+                                index: chunks.count,
+                                startPosition: baseOffset + sentenceChunk.metadata.startPosition,
+                                endPosition: baseOffset + sentenceChunk.metadata.endPosition,
+                                hasOverlapWithPrevious: chunks.count > 0,
+                                hasOverlapWithNext: sentenceIdx < sentenceChunks.count - 1 || idx < sections.count - 1,
+                                contentType: .markdown,
+                                source: nil
+                            )
+                        ))
+                    }
+                } catch {
+                    throw ChunkingHelper.wrapChunkingError(
+                        error,
+                        strategyName: "SemanticChunker.markdown (fallback to SentenceChunker for oversized section)"
+                    )
                 }
-                continue
             }
 
             if currentSize + sectionSize > config.chunkSize && !currentSections.isEmpty {
@@ -216,7 +226,15 @@ struct SemanticChunker: ChunkingStrategy {
                 contentType: segment.isCode ? .code : .prose
             )
 
-            let segmentChunks = try chunk(text: segment.content, config: segmentConfig)
+            let segmentChunks: [Chunk]
+            do {
+                segmentChunks = try chunk(text: segment.content, config: segmentConfig)
+            } catch {
+                throw ChunkingHelper.wrapChunkingError(
+                    error,
+                    strategyName: "SemanticChunker.mixed (segment: \(segment.isCode ? "code" : "prose"))"
+                )
+            }
             let baseOffset = text.distance(from: text.startIndex, to: segment.range.lowerBound)
 
             for (chunkIdx, segmentChunk) in segmentChunks.enumerated() {

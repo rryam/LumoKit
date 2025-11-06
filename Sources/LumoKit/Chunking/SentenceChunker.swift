@@ -12,7 +12,11 @@ struct SentenceChunker: ChunkingStrategy {
         let sentences = extractSentences(from: text)
         guard !sentences.isEmpty else {
             // Fallback to word chunking if no sentences detected
-            return try WordChunker().chunk(text: text, config: config)
+            do {
+                return try WordChunker().chunk(text: text, config: config)
+            } catch {
+                throw ChunkingHelper.wrapChunkingError(error, strategyName: "SentenceChunker (fallback to WordChunker)")
+            }
         }
 
         var chunks: [Chunk] = []
@@ -33,20 +37,27 @@ struct SentenceChunker: ChunkingStrategy {
                 }
 
                 // Split long sentence into word-based chunks
-                let wordChunks = try WordChunker().chunk(text: sentence, config: config)
+                do {
+                    let wordChunks = try WordChunker().chunk(text: sentence, config: config)
 
-                for wordChunk in wordChunks {
-                    let baseOffset = text.distance(from: text.startIndex, to: sentenceData.range.lowerBound)
-                    let adjustedMetadata = ChunkMetadata(
-                        index: chunks.count,
-                        startPosition: baseOffset + wordChunk.metadata.startPosition,
-                        endPosition: baseOffset + wordChunk.metadata.endPosition,
-                        hasOverlapWithPrevious: chunks.count > 0,
-                        hasOverlapWithNext: true,
-                        contentType: config.contentType,
-                        source: nil
+                    for wordChunk in wordChunks {
+                        let baseOffset = text.distance(from: text.startIndex, to: sentenceData.range.lowerBound)
+                        let adjustedMetadata = ChunkMetadata(
+                            index: chunks.count,
+                            startPosition: baseOffset + wordChunk.metadata.startPosition,
+                            endPosition: baseOffset + wordChunk.metadata.endPosition,
+                            hasOverlapWithPrevious: chunks.count > 0,
+                            hasOverlapWithNext: true,
+                            contentType: config.contentType,
+                            source: nil
+                        )
+                        chunks.append(Chunk(text: wordChunk.text, metadata: adjustedMetadata))
+                    }
+                } catch {
+                    throw ChunkingHelper.wrapChunkingError(
+                        error,
+                        strategyName: "SentenceChunker (fallback to WordChunker for oversized sentence)"
                     )
-                    chunks.append(Chunk(text: wordChunk.text, metadata: adjustedMetadata))
                 }
                 continue
             }

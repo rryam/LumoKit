@@ -33,6 +33,19 @@ struct ChunkingHelper {
         }
     }
 
+    /// Wraps an error with context about which chunking strategy failed
+    /// - Parameters:
+    ///   - error: The underlying error that occurred
+    ///   - strategyName: The name of the chunking strategy that failed
+    /// - Returns: A wrapped error with context, or the original error if it's already a LumoKitError
+    static func wrapChunkingError(_ error: Error, strategyName: String) -> Error {
+        // If it's already a LumoKitError, return it as-is to avoid double-wrapping
+        if error is LumoKitError {
+            return error
+        }
+        return LumoKitError.chunkingFailed(strategy: strategyName, underlyingError: error)
+    }
+
     /// Calculate overlap for text segments
     /// - Parameters:
     ///   - segments: Array of text segments
