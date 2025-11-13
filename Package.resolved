@@ -2,15 +2,6 @@
   "originHash" : "9b4732f5838a4114364d0c986df48cbb6f8d7f893aa29bf679f9b6d9da2471a9",
   "pins" : [
     {
-      "identity" : "gzipswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/1024jp/GzipSwift",
-      "state" : {
-        "revision" : "731037f6cc2be2ec01562f6597c1d0aa3fe6fd05",
-        "version" : "6.0.1"
-      }
-    },
-    {
       "identity" : "lrucache",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nicklockwood/LRUCache.git",
@@ -29,12 +20,12 @@
       }
     },
     {
-      "identity" : "mlx-swift-examples",
+      "identity" : "mlx-swift-lm",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ml-explore/mlx-swift-examples/",
+      "location" : "https://github.com/ml-explore/mlx-swift-lm/",
       "state" : {
-        "branch" : "main",
-        "revision" : "b0717631e37a7940b292eec11255d60029ed7a4d"
+        "revision" : "01852971866b17889f7aff27500cc62d9148b0df",
+        "version" : "2.29.2"
       }
     },
     {
@@ -78,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jkrukowski/swift-embeddings.git",
       "state" : {
-        "revision" : "b4df611ec614ef36149c4a926a47b539724ef01a",
-        "version" : "0.0.23"
+        "revision" : "b48de7c66a14e48264863ec322bffed023080d28",
+        "version" : "0.0.24"
       }
     },
     {
@@ -142,7 +133,7 @@
       "location" : "https://github.com/rryam/VecturaKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "39e2e11eec38479cf667bf15e29d168d818594a9"
+        "revision" : "2a2b606936c62e65ad8dd9e8cd280b123608768d"
       }
     }
   ],
