@@ -26,7 +26,8 @@ struct WordChunker: ChunkingStrategy {
             let wordSize = word.count
 
             // Check if adding this word would exceed the chunk size
-            if currentSize + wordSize + ChunkingHelper.Constants.spaceSeparatorSize > config.chunkSize && !currentWords.isEmpty {
+            let totalSize = currentSize + wordSize + ChunkingHelper.Constants.spaceSeparatorSize
+            if totalSize > config.chunkSize && !currentWords.isEmpty {
                 // Create chunk from accumulated words
                 guard let firstRange = currentWords.first?.range,
                       let lastRange = currentWords.last?.range else {

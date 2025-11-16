@@ -122,15 +122,17 @@ struct SentenceChunker: ChunkingStrategy {
         config: ChunkingConfig,
         hasNext: Bool
     ) {
-        guard let chunk = ChunkingHelper.createChunkFromSegments(
+        let context = ChunkContext(config: config, chunks: chunks, hasNext: hasNext)
+        let segmentParams = SegmentChunkParameters(
             segments: sentences,
             separator: ChunkingHelper.Constants.spaceSeparator,
             textExtractor: { $0.text },
-            rangeExtractor: { $0.range },
+            rangeExtractor: { $0.range }
+        )
+        guard let chunk = ChunkingHelper.createChunkFromSegments(
+            parameters: segmentParams,
             text: text,
-            chunks: chunks,
-            config: config,
-            hasNext: hasNext
+            context: context
         ) else {
             return
         }

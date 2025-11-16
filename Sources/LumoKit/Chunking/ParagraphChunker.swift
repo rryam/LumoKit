@@ -94,7 +94,8 @@ struct ParagraphChunker: ChunkingStrategy {
             }
 
             currentParagraphs.append((paragraph, paragraphData.range))
-            currentSize += paragraphSize + (currentParagraphs.count > 1 ? ChunkingHelper.Constants.paragraphSeparatorSize : 0)
+            let separatorSize = currentParagraphs.count > 1 ? ChunkingHelper.Constants.paragraphSeparatorSize : 0
+            currentSize += paragraphSize + separatorSize
         }
 
         // Add remaining paragraphs as final chunk
@@ -128,15 +129,17 @@ struct ParagraphChunker: ChunkingStrategy {
         config: ChunkingConfig,
         hasNext: Bool
     ) {
-        guard let chunk = ChunkingHelper.createChunkFromSegments(
+        let context = ChunkContext(config: config, chunks: chunks, hasNext: hasNext)
+        let segmentParams = SegmentChunkParameters(
             segments: paragraphs,
             separator: ChunkingHelper.Constants.paragraphSeparator,
             textExtractor: { $0.text },
-            rangeExtractor: { $0.range },
+            rangeExtractor: { $0.range }
+        )
+        guard let chunk = ChunkingHelper.createChunkFromSegments(
+            parameters: segmentParams,
             text: text,
-            chunks: chunks,
-            config: config,
-            hasNext: hasNext
+            context: context
         ) else {
             return
         }

@@ -24,6 +24,30 @@ public struct ChunkingStrategyFactory {
     }
 }
 
+/// Context information for chunk creation
+struct ChunkContext {
+    let config: ChunkingConfig
+    let chunks: [Chunk]
+    let hasNext: Bool
+}
+
+/// Parameters for creating a chunk from segments
+struct SegmentChunkParameters<T> {
+    let segments: [T]
+    let separator: String
+    let textExtractor: (T) -> String
+    let rangeExtractor: (T) -> Range<String.Index>
+}
+
+/// Parameters for creating a simple chunk
+struct ChunkParameters {
+    let text: String
+    let index: Int
+    let startPosition: Int
+    let endPosition: Int
+    let hasNext: Bool
+}
+
 /// Base functionality shared across chunking strategies
 struct ChunkingHelper {
     /// Constants used for chunking calculations
@@ -75,51 +99,42 @@ struct ChunkingHelper {
     /// Builds chunk text without intermediate array allocations.
     ///
     /// - Parameters:
-    ///   - segments: Array of text segments with their ranges
-    ///   - separator: String separator to join segments (e.g., " ", "\n", "\n\n")
-    ///   - textExtractor: Closure to extract text from each segment
+    ///   - parameters: Segment parameters containing segments, separator, and extractors
     ///   - text: The original full text (for position calculation)
-    ///   - chunks: The current chunks array (for index calculation)
-    ///   - config: Chunking configuration
-    ///   - hasNext: Whether there are more chunks coming
+    ///   - context: Context containing config, chunks, and hasNext info
     /// - Returns: A new Chunk, or nil if segments are empty
     static func createChunkFromSegments<T>(
-        segments: [T],
-        separator: String,
-        textExtractor: (T) -> String,
-        rangeExtractor: (T) -> Range<String.Index>,
+        parameters: SegmentChunkParameters<T>,
         text: String,
-        chunks: [Chunk],
-        config: ChunkingConfig,
-        hasNext: Bool
+        context: ChunkContext
     ) -> Chunk? {
-        guard let firstSegment = segments.first,
-              let lastSegment = segments.last else {
+        guard let firstSegment = parameters.segments.first,
+              let lastSegment = parameters.segments.last else {
             return nil
         }
 
-        let firstRange = rangeExtractor(firstSegment)
-        let lastRange = rangeExtractor(lastSegment)
+        let firstRange = parameters.rangeExtractor(firstSegment)
+        let lastRange = parameters.rangeExtractor(lastSegment)
 
         // Build chunk text without intermediate array allocations
         var chunkText = ""
-        for (idx, segment) in segments.enumerated() {
+        for (idx, segment) in parameters.segments.enumerated() {
             if idx > 0 {
-                chunkText += separator
+                chunkText += parameters.separator
             }
-            chunkText += textExtractor(segment)
+            chunkText += parameters.textExtractor(segment)
         }
 
         let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
         let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 
         let metadata = ChunkMetadata(
-            index: chunks.count,
+            index: context.chunks.count,
             startPosition: startPos,
             endPosition: endPos,
-            hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: hasNext,
-            contentType: config.contentType,
+            hasOverlapWithPrevious: context.chunks.count > 0 && context.config.overlapSize > 0,
+            hasOverlapWithNext: context.hasNext,
+            contentType: context.config.contentType,
             source: nil
         )
 
@@ -155,30 +170,22 @@ struct ChunkingHelper {
 
     /// Creates a chunk with explicit position values
     /// - Parameters:
-    ///   - text: The chunk text content
-    ///   - index: The chunk index
-    ///   - startPosition: Start position in the original text
-    ///   - endPosition: End position in the original text
+    ///   - parameters: Chunk creation parameters
     ///   - config: Chunking configuration
-    ///   - hasNext: Whether there are more chunks coming
     /// - Returns: A new Chunk
     static func createChunk(
-        text: String,
-        index: Int,
-        startPosition: Int,
-        endPosition: Int,
-        config: ChunkingConfig,
-        hasNext: Bool
+        parameters: ChunkParameters,
+        config: ChunkingConfig
     ) -> Chunk {
         let metadata = ChunkMetadata(
-            index: index,
-            startPosition: startPosition,
-            endPosition: endPosition,
-            hasOverlapWithPrevious: index > 0 && config.overlapSize > 0,
-            hasOverlapWithNext: hasNext,
+            index: parameters.index,
+            startPosition: parameters.startPosition,
+            endPosition: parameters.endPosition,
+            hasOverlapWithPrevious: parameters.index > 0 && config.overlapSize > 0,
+            hasOverlapWithNext: parameters.hasNext,
             contentType: config.contentType,
             source: nil
         )
-        return Chunk(text: text, metadata: metadata)
+        return Chunk(text: parameters.text, metadata: metadata)
     }
 }
