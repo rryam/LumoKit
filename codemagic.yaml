@@ -37,9 +37,8 @@ workflows:
         script: |
           #!/bin/zsh
 
-          set -o pipefail
-          xcodebuild clean test \
+          set -e
+          xcodebuild test \
             -scheme "$XCODE_SCHEME" \
             -destination "platform=macOS" \
-            -skipPackagePluginValidation | xcpretty --report junit
-        test_report: build/reports/junit.xml
+            -skipPackagePluginValidation
