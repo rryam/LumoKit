@@ -71,15 +71,7 @@ func testLumoKitSourceMetadata() async throws {
 @Test("LumoKit search parameter validation")
 func testLumoKitSearchParameterValidation() async throws {
     let config = try VecturaConfig(name: "test-db-search-validation")
-    let lumoKit: LumoKit
-    do {
-        lumoKit = try await LumoKit(config: config)
-    } catch {
-        // In CI, model downloads may fail - parameter validation requires LumoKit instance
-        // So we verify the initialization error is handled gracefully
-        #expect(error.localizedDescription.count > 0, "Error should have description")
-        return
-    }
+    let lumoKit = try await LumoKit(config: config)
 
     // Add some documents for testing
     let tempDir = FileManager.default.temporaryDirectory
