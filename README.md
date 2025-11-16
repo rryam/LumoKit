@@ -88,7 +88,7 @@ Add LumoKit to your `Package.swift` using Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/rryam/LumoKit.git", from: "0.1.0")
+    .package(url: "https://github.com/rryam/LumoKit.git", from: "1.1.1")
 ]
 ```
 
