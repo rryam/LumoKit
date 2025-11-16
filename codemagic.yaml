@@ -37,8 +37,8 @@ workflows:
         script: |
           #!/bin/zsh
 
-          set -e
-          xcodebuild test \
-            -scheme "$XCODE_SCHEME" \
-            -destination "platform=macOS" \
-            -skipPackagePluginValidation
+          # Set environment variables for model downloads
+          export HF_HUB_OFFLINE=0
+
+          # Run tests using swift test with --no-parallel to avoid concurrent model download issues
+          swift test --no-parallel
