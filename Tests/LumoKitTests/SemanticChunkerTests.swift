@@ -110,3 +110,56 @@ func testSemanticChunkerMixedContent() throws {
     #expect(!codeChunks.isEmpty, "Should contain code chunks")
     #expect(codeChunks[0].text.contains("func code()"))
 }
+
+@Test("Semantic chunker mixed content with unclosed code fence")
+func testSemanticChunkerMixedContentWithUnclosedCodeFence() throws {
+    let text = """
+    Prose before code.
+
+    ```swift
+    func code() {
+        return 1
+    }
+    """
+    let config = ChunkingConfig(
+        chunkSize: 80,
+        strategy: .semantic,
+        contentType: .mixed
+    )
+    let strategy = SemanticChunker()
+
+    let chunks = try strategy.chunk(text: text, config: config)
+
+    #expect(!chunks.isEmpty, "Should produce chunks")
+    let codeChunks = chunks.filter { $0.metadata.contentType == .code }
+    #expect(!codeChunks.isEmpty, "Should detect code even without closing fence")
+    #expect(codeChunks[0].text.contains("func code()"))
+    for chunk in chunks {
+        #expect(!chunk.text.contains("```"), "Chunks should exclude code fences")
+    }
+}
+
+@Test("Semantic chunker markdown with consecutive headers")
+func testSemanticChunkerMarkdownConsecutiveHeaders() throws {
+    let text = """
+    # Header 1
+
+    ## Header 2
+
+    Content under header 2.
+    """
+    let config = ChunkingConfig(
+        chunkSize: 80,
+        strategy: .semantic,
+        contentType: .markdown
+    )
+    let strategy = SemanticChunker()
+
+    let chunks = try strategy.chunk(text: text, config: config)
+
+    #expect(!chunks.isEmpty, "Should produce chunks")
+    for chunk in chunks {
+        #expect(!chunk.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+    #expect(chunks.map { $0.text }.joined(separator: " ").contains("Header 2"))
+}
