@@ -21,7 +21,7 @@ struct WordChunker: ChunkingStrategy {
         var currentWords: [(word: String, range: Range<String.Index>)] = []
         var currentSize = 0
 
-        for (idx, wordData) in words.enumerated() {
+        for wordData in words {
             let word = wordData.word
             let wordSize = word.count
 
@@ -49,7 +49,7 @@ struct WordChunker: ChunkingStrategy {
                     startPosition: startPos,
                     endPosition: endPos,
                     hasOverlapWithPrevious: chunks.count > 0 && config.overlapSize > 0,
-                    hasOverlapWithNext: idx < words.count - 1,
+                    hasOverlapWithNext: true,
                     contentType: config.contentType,
                     source: nil
                 )
@@ -57,7 +57,7 @@ struct WordChunker: ChunkingStrategy {
                 chunks.append(Chunk(text: chunkText, metadata: metadata))
 
                 // Handle overlap
-                if config.overlapSize > 0 && idx < words.count - 1 {
+                if config.overlapSize > 0 {
                     let wordStrings = currentWords.map { $0.word }
                     let overlap = ChunkingHelper.calculateOverlap(wordStrings, targetSize: config.overlapSize)
                     let overlapCount = overlap.segments.count
@@ -68,6 +68,13 @@ struct WordChunker: ChunkingStrategy {
                     currentSize = 0
                 }
             }
+
+            trimOverlapForNextWord(
+                currentWords: &currentWords,
+                currentSize: &currentSize,
+                nextWordSize: wordSize,
+                chunkSize: config.chunkSize
+            )
 
             currentWords.append(wordData)
             currentSize += wordSize + (currentWords.count > 1 ? ChunkingHelper.Constants.spaceSeparatorSize : 0)
@@ -102,5 +109,27 @@ struct WordChunker: ChunkingStrategy {
         }
 
         return chunks
+    }
+
+    private func trimOverlapForNextWord(
+        currentWords: inout [(word: String, range: Range<String.Index>)],
+        currentSize: inout Int,
+        nextWordSize: Int,
+        chunkSize: Int
+    ) {
+        while !currentWords.isEmpty {
+            let separatorSize = ChunkingHelper.Constants.spaceSeparatorSize
+            if currentSize + nextWordSize + separatorSize <= chunkSize {
+                break
+            }
+            let removed = currentWords.removeFirst()
+            currentSize -= removed.word.count
+            if !currentWords.isEmpty {
+                currentSize -= ChunkingHelper.Constants.spaceSeparatorSize
+            }
+        }
+        if currentWords.isEmpty {
+            currentSize = 0
+        }
     }
 }

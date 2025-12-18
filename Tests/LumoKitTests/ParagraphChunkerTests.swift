@@ -69,17 +69,25 @@ func testParagraphChunkerOversizedParagraphDoesNotEmitOversizedChunk() throws {
 
 @Test("Paragraph chunker oversized paragraph applies sentence overlap")
 func testParagraphChunkerOversizedParagraphOverlapUsesSentenceReuse() throws {
-    let sentence1 = "Sentence one is short."
-    let sentence2 = "Sentence two is a bit longer."
-    let sentence3 = "Sentence three keeps the paragraph long."
+    let sentence1 = "Short one."
+    let sentence2 = "Alpha beta."
+    let sentence3 = "This sentence makes it long."
     let longParagraph = "\(sentence1) \(sentence2) \(sentence3)"
 
-    let config = ChunkingConfig(chunkSize: 50, overlapPercentage: 0.5, strategy: .paragraph)
+    let config = ChunkingConfig(chunkSize: 40, overlapPercentage: 0.5, strategy: .paragraph)
     let strategy = ParagraphChunker()
 
     let chunks = try strategy.chunk(text: longParagraph, config: config)
 
     #expect(chunks.count > 1, "Should produce multiple chunks")
-    #expect(chunks[0].text.contains(sentence1), "First chunk should include sentence one")
-    #expect(chunks[1].text.contains(sentence1), "Second chunk should include overlapped sentence one")
+    #expect(chunks[0].text.contains(sentence2), "First chunk should include sentence two")
+    #expect(chunks[1].text.contains(sentence2), "Second chunk should include overlapped sentence two")
+    for chunk in chunks {
+        #expect(
+            chunk.text.count <= config.chunkSize,
+            """
+            Chunk should not exceed configured size. Text: '\(chunk.text)', Size: \(chunk.text.count), Max: \(config.chunkSize)
+            """
+        )
+    }
 }

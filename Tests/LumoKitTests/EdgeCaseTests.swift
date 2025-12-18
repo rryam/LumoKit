@@ -29,9 +29,9 @@ func testVeryLargeChunkSize() throws {
 
 @Test("Overlap percentage = 1.0 (100% overlap)")
 func testFullOverlap() throws {
-    let text = "First sentence. Second sentence. Third sentence."
+    let text = "One. Two. Three."
     let config = ChunkingConfig(
-        chunkSize: 30,
+        chunkSize: 12,
         overlapPercentage: 1.0,
         strategy: .sentence
     )

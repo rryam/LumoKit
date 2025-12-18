@@ -23,7 +23,7 @@ struct SentenceChunker: ChunkingStrategy {
         var currentSentences: [(text: String, range: Range<String.Index>)] = []
         var currentSize = 0
 
-        for (idx, sentenceData) in sentences.enumerated() {
+        for sentenceData in sentences {
             let sentence = sentenceData.sentence
             let sentenceSize = sentence.count
 
@@ -69,11 +69,11 @@ struct SentenceChunker: ChunkingStrategy {
                     to: &chunks,
                     text: text,
                     config: config,
-                    hasNext: idx < sentences.count - 1
+                    hasNext: true
                 )
 
                 // Handle overlap
-                if config.overlapSize > 0 && idx < sentences.count - 1 {
+                if config.overlapSize > 0 {
                     let overlap = ChunkingHelper.calculateOverlap(
                         currentSentences.map { $0.text },
                         targetSize: config.overlapSize
@@ -85,6 +85,21 @@ struct SentenceChunker: ChunkingStrategy {
                     currentSentences = []
                     currentSize = 0
                 }
+            }
+
+            while !currentSentences.isEmpty {
+                let separatorSize = ChunkingHelper.Constants.spaceSeparatorSize
+                if currentSize + sentenceSize + separatorSize <= config.chunkSize {
+                    break
+                }
+                let removed = currentSentences.removeFirst()
+                currentSize -= removed.text.count
+                if !currentSentences.isEmpty {
+                    currentSize -= ChunkingHelper.Constants.spaceSeparatorSize
+                }
+            }
+            if currentSentences.isEmpty {
+                currentSize = 0
             }
 
             currentSentences.append((sentence, sentenceData.range))
