@@ -26,7 +26,7 @@ struct ParagraphChunker: ChunkingStrategy {
         var currentParagraphs: [(text: String, range: Range<String.Index>)] = []
         var currentSize = 0
 
-        for (idx, paragraphData) in paragraphs.enumerated() {
+        for paragraphData in paragraphs {
             let paragraph = paragraphData.paragraph
             let paragraphSize = paragraph.count
 
@@ -65,6 +65,7 @@ struct ParagraphChunker: ChunkingStrategy {
                         strategyName: "ParagraphChunker (fallback to SentenceChunker for oversized paragraph)"
                     )
                 }
+                continue
             }
 
             // Check if adding this paragraph would exceed the chunk size
@@ -74,11 +75,11 @@ struct ParagraphChunker: ChunkingStrategy {
                     to: &chunks,
                     text: text,
                     config: config,
-                    hasNext: idx < paragraphs.count - 1
+                    hasNext: true
                 )
 
                 // Handle overlap
-                if config.overlapSize > 0 && idx < paragraphs.count - 1 {
+                if config.overlapSize > 0 {
                     let overlap = ChunkingHelper.calculateOverlap(
                         currentParagraphs.map { $0.text },
                         targetSize: config.overlapSize,
@@ -91,6 +92,21 @@ struct ParagraphChunker: ChunkingStrategy {
                     currentParagraphs = []
                     currentSize = 0
                 }
+            }
+
+            while !currentParagraphs.isEmpty {
+                let separatorSize = ChunkingHelper.Constants.paragraphSeparatorSize
+                if currentSize + paragraphSize + separatorSize <= config.chunkSize {
+                    break
+                }
+                let removed = currentParagraphs.removeFirst()
+                currentSize -= removed.text.count
+                if !currentParagraphs.isEmpty {
+                    currentSize -= ChunkingHelper.Constants.paragraphSeparatorSize
+                }
+            }
+            if currentParagraphs.isEmpty {
+                currentSize = 0
             }
 
             currentParagraphs.append((paragraph, paragraphData.range))
