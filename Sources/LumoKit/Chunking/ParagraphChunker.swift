@@ -65,6 +65,7 @@ struct ParagraphChunker: ChunkingStrategy {
                         strategyName: "ParagraphChunker (fallback to SentenceChunker for oversized paragraph)"
                     )
                 }
+                continue
             }
 
             // Check if adding this paragraph would exceed the chunk size
