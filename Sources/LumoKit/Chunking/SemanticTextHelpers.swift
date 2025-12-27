@@ -92,7 +92,6 @@ struct SemanticTextHelpers {
         var segments: [ContentSegment] = []
         var currentContent: [(line: String, range: Range<String.Index>)] = []
         var inCodeBlock = false
-        var unclosedFenceCount = 0
 
         let lines = splitLinesWithRanges(from: text)
 
@@ -118,12 +117,7 @@ struct SemanticTextHelpers {
                     ))
                     currentContent = []
                 }
-                // Track fence depth - only toggle on properly matched pairs
-                unclosedFenceCount += 1
-                if unclosedFenceCount >= 2 {
-                    inCodeBlock.toggle()
-                    unclosedFenceCount = 0
-                }
+                inCodeBlock.toggle()
                 // Don't include the fence line in content
             } else {
                 currentContent.append(lineData)
@@ -142,12 +136,10 @@ struct SemanticTextHelpers {
                 }
                 contentText += contentLine.line
             }
-            // If there's an unclosed fence, treat remaining as prose (malformed markdown)
-            let isCode = inCodeBlock && unclosedFenceCount == 0
             segments.append(ContentSegment(
                 content: contentText,
                 range: firstRange.lowerBound..<lastRange.upperBound,
-                isCode: isCode
+                isCode: inCodeBlock
             ))
         }
 

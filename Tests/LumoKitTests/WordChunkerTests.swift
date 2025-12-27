@@ -6,7 +6,7 @@ import Testing
 @Test("Word chunker basic")
 func testWordChunkerBasic() throws {
     let text = "This is a simple test with multiple words"
-    let config = ChunkingConfig(chunkSize: 20, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 20, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -24,7 +24,7 @@ func testWordChunkerBasic() throws {
 @Test("Word chunker with overlap")
 func testWordChunkerWithOverlap() throws {
     let text = "First second third fourth fifth sixth seventh eighth"
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 20,
         overlapPercentage: 0.3,
         contentType: .prose
@@ -43,7 +43,7 @@ func testWordChunkerWithOverlap() throws {
 @Test("Word chunker with unicode")
 func testWordChunkerWithUnicode() throws {
     let text = "Hello 世界 bonjour こんにちは مرحبا"
-    let config = ChunkingConfig(chunkSize: 15, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 15, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -60,7 +60,7 @@ func testWordChunkerWithUnicode() throws {
 @Test("Word chunker with emojis")
 func testWordChunkerWithEmojis() throws {
     let text = "Hello 🚀 world 🎉 test ✅"
-    let config = ChunkingConfig(chunkSize: 15, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 15, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -77,7 +77,7 @@ func testWordChunkerWithEmojis() throws {
 @Test("Word chunker empty text")
 func testWordChunkerEmptyText() throws {
     let text = ""
-    let config = ChunkingConfig(chunkSize: 100, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 100, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -88,7 +88,7 @@ func testWordChunkerEmptyText() throws {
 @Test("Word chunker single word")
 func testWordChunkerSingleWord() throws {
     let text = "Hello"
-    let config = ChunkingConfig(chunkSize: 100, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 100, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -102,7 +102,7 @@ func testWordChunkerVeryLongWord() throws {
     // Create a word longer than chunk size
     let longWord = String(repeating: "a", count: 1000)
     let text = "\(longWord) normal words here"
-    let config = ChunkingConfig(chunkSize: 100, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 100, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -115,7 +115,7 @@ func testWordChunkerVeryLongWord() throws {
 @Test("Word chunker with punctuation")
 func testWordChunkerWithPunctuation() throws {
     let text = "Hello world How are you I'm fine"
-    let config = ChunkingConfig(chunkSize: 20, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 20, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -133,7 +133,7 @@ func testWordChunkerWithPunctuation() throws {
 @Test("Word chunker with hyphenated words")
 func testWordChunkerWithHyphenatedWords() throws {
     let text = "state of the art well known self contained"
-    let config = ChunkingConfig(chunkSize: 25, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 25, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -150,7 +150,7 @@ func testWordChunkerWithHyphenatedWords() throws {
 @Test("Word chunker metadata")
 func testWordChunkerMetadata() throws {
     let text = "First second third fourth fifth"
-    let config = ChunkingConfig(chunkSize: 15, contentType: .prose)
+    let config = try ChunkingConfig(chunkSize: 15, contentType: .prose)
     let strategy = WordChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)

@@ -6,7 +6,7 @@ import Testing
 @Test("Chunk metadata")
 func testChunkMetadata() throws {
     let text = "This is a test sentence. Another sentence here."
-    let config = ChunkingConfig(chunkSize: 30, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 30, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)

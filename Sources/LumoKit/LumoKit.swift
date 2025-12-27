@@ -125,10 +125,14 @@ public final class LumoKit {
     ///   - doc: The PicoDocument to check
     ///   - stage: The stage name for error context
     private func checkDocumentStatus(_ doc: PicoDocument, stage: String) async throws {
-        let status = doc.status
-        guard case .failed(let error) = status else {
-            return
+        // Execute on MainActor to access main actor-isolated status
+        let error = await MainActor.run { () -> Error? in
+            guard case .failed(let err) = doc.status else {
+                return nil
+            }
+            return err
         }
+        guard let error = error else { return }
 
         if let picoError = error as? PicoDocsError {
             switch picoError {

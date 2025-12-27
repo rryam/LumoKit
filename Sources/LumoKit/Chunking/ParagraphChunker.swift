@@ -94,17 +94,21 @@ struct ParagraphChunker: ChunkingStrategy {
                 }
             }
 
+            // Trim paragraphs from the front until there's room for the new paragraph
+            var needsSeparator = false
             while !currentParagraphs.isEmpty {
-                let separatorSize = ChunkingHelper.Constants.paragraphSeparatorSize
+                let separatorSize = needsSeparator ? ChunkingHelper.Constants.paragraphSeparatorSize : 0
                 if currentSize + paragraphSize + separatorSize <= config.chunkSize {
                     break
                 }
                 let removed = currentParagraphs.removeFirst()
                 currentSize -= removed.text.count
-                if !currentParagraphs.isEmpty {
+                needsSeparator = !currentParagraphs.isEmpty
+                if needsSeparator {
                     currentSize -= ChunkingHelper.Constants.paragraphSeparatorSize
                 }
             }
+            // Reset size tracking if we've emptied the chunk
             if currentParagraphs.isEmpty {
                 currentSize = 0
             }
