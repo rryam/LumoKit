@@ -199,6 +199,13 @@ public final class LumoKit {
     public func addDocuments(texts: [String]) async throws {
         _ = try await vectura.addDocuments(texts: texts)
     }
+
+    /// Returns the total number of indexed documents
+    ///
+    /// - Returns: The count of documents in the vector database
+    public func documentCount() async throws -> Int {
+        try await vectura.getTotalDocumentCount()
+    }
 }
 
 public enum LumoKitError: Error, Equatable {
