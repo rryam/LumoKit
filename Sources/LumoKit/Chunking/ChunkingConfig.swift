@@ -20,14 +20,20 @@ public struct ChunkingConfig {
         overlapPercentage: Double = 0.1,
         strategy: ChunkingStrategyType = .semantic,
         contentType: ContentType = .prose
-    ) {
+    ) throws {
+        guard chunkSize > 0 else {
+            throw LumoKitError.invalidChunkSize
+        }
         self.chunkSize = chunkSize
         self.overlapPercentage = max(0.0, min(1.0, overlapPercentage))
         self.strategy = strategy
         self.contentType = contentType
     }
 
-    /// The overlap size in characters
+    /// The calculated overlap size in characters based on chunk size and overlap percentage.
+    ///
+    /// Computed as `chunkSize * overlapPercentage`, then truncated to an integer.
+    /// For example, with chunkSize=500 and overlapPercentage=0.1, overlapSize=50.
     var overlapSize: Int {
         Int(Double(chunkSize) * overlapPercentage)
     }

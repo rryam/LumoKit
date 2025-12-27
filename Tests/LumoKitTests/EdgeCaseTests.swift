@@ -5,7 +5,7 @@ import Testing
 
 @Test("Empty string input")
 func testEmptyStringInput() throws {
-    let config = ChunkingConfig(chunkSize: 100, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 100, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: "", config: config)
@@ -18,7 +18,7 @@ func testVeryLargeChunkSize() throws {
     let text = String(repeating: "This is a sentence with many words. ", count: 500)
     #expect(text.count > 10000, "Test text should be > 10,000 characters")
 
-    let config = ChunkingConfig(chunkSize: 20000, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 20000, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -30,7 +30,7 @@ func testVeryLargeChunkSize() throws {
 @Test("Overlap percentage = 1.0 (100% overlap)")
 func testFullOverlap() throws {
     let text = "One. Two. Three."
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 12,
         overlapPercentage: 1.0,
         strategy: .sentence
@@ -53,7 +53,7 @@ func testFullOverlap() throws {
 @Test("Documents with only whitespace")
 func testOnlyWhitespace() throws {
     let text = "   \n\n\t\t   \n   "
-    let config = ChunkingConfig(chunkSize: 100, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 100, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -64,7 +64,7 @@ func testOnlyWhitespace() throws {
 @Test("Documents with only special characters")
 func testOnlySpecialCharacters() throws {
     let text = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
-    let config = ChunkingConfig(chunkSize: 20, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 20, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -81,7 +81,7 @@ func testConcurrentChunking() async throws {
     try await withThrowingTaskGroup(of: [Chunk].self) { group in
         for _ in 0..<10 {
             group.addTask {
-                let config = ChunkingConfig(
+                let config = try ChunkingConfig(
                     chunkSize: chunkSize,
                     overlapPercentage: overlapPercentage,
                     strategy: .sentence
@@ -114,7 +114,7 @@ func testMemoryPressure() throws {
     let largeText = String(repeating: "This is a very long sentence that contains many words. ", count: 2000)
     #expect(largeText.count > 100000, "Should be a large text")
 
-    let config = ChunkingConfig(chunkSize: 500, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 500, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: largeText, config: config)
@@ -139,7 +139,7 @@ func testMemoryPressure() throws {
 @Test("Zero overlap percentage")
 func testZeroOverlap() throws {
     let text = "First sentence. Second sentence. Third sentence."
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 30,
         overlapPercentage: 0.0,
         strategy: .sentence
@@ -161,7 +161,7 @@ func testZeroOverlap() throws {
 func testSingleCharacterChunkSize() throws {
     let text = "Hello world"
     // Use sentence strategy - WordChunker is internal fallback
-    let config = ChunkingConfig(chunkSize: 1, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 1, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -173,7 +173,7 @@ func testSingleCharacterChunkSize() throws {
 @Test("Negative chunk size throws error")
 func testNegativeChunkSize() throws {
     let text = "Test"
-    let config = ChunkingConfig(chunkSize: -1, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: -1, strategy: .sentence)
     let strategy = SentenceChunker()
 
     #expect(throws: LumoKitError.invalidChunkSize) {
@@ -184,7 +184,7 @@ func testNegativeChunkSize() throws {
 @Test("Very small text with large chunk size")
 func testSmallTextLargeChunk() throws {
     let text = "Hi"
-    let config = ChunkingConfig(chunkSize: 10000, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 10000, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)

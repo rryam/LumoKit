@@ -16,7 +16,7 @@ func testLumoKitPublicAPI() async throws {
     Here's a second paragraph that adds more content for testing. The chunking should respect paragraph boundaries.
     """
 
-    let chunkingConfig = ChunkingConfig(
+    let chunkingConfig = try ChunkingConfig(
         chunkSize: 100,
         overlapPercentage: 0.15,
         strategy: .semantic,

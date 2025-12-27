@@ -27,7 +27,7 @@ func testMixedContentWithCodeBlocks() throws {
     Final paragraph wrapping things up.
     """
 
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 100,
         strategy: .semantic,
         contentType: .mixed
@@ -69,7 +69,7 @@ func testUnicodeAndEmojis() throws {
     Mixed: Hello 世界 🚀 and 日本語 text.
     """
 
-    let config = ChunkingConfig(chunkSize: 100, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 100, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -96,7 +96,7 @@ func testVeryLongSingleSentence() throws {
     let longSentence = String(repeating: "word ", count: 500) + "end."
     #expect(longSentence.count > 2000, "Should be a very long sentence")
 
-    let config = ChunkingConfig(chunkSize: 500, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 500, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: longSentence, config: config)
@@ -121,7 +121,7 @@ func testVeryLongSingleParagraph() throws {
     let longParagraph = String(repeating: "This is a sentence in a paragraph. ", count: 100)
     #expect(longParagraph.count > 3000, "Should be a very long paragraph")
 
-    let config = ChunkingConfig(chunkSize: 500, strategy: .paragraph)
+    let config = try ChunkingConfig(chunkSize: 500, strategy: .paragraph)
     let strategy = ParagraphChunker()
 
     let chunks = try strategy.chunk(text: longParagraph, config: config)
@@ -157,7 +157,7 @@ func testMixedUnicodeAndCode() throws {
     More prose with emojis: Success! ✅ Done. 🎉
     """
 
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 150,
         strategy: .semantic,
         contentType: .mixed

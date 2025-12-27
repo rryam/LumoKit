@@ -87,17 +87,21 @@ struct SentenceChunker: ChunkingStrategy {
                 }
             }
 
+            // Trim sentences from the front until there's room for the new sentence
+            var needsSeparator = false
             while !currentSentences.isEmpty {
-                let separatorSize = ChunkingHelper.Constants.spaceSeparatorSize
+                let separatorSize = needsSeparator ? ChunkingHelper.Constants.spaceSeparatorSize : 0
                 if currentSize + sentenceSize + separatorSize <= config.chunkSize {
                     break
                 }
                 let removed = currentSentences.removeFirst()
                 currentSize -= removed.text.count
-                if !currentSentences.isEmpty {
+                needsSeparator = !currentSentences.isEmpty
+                if needsSeparator {
                     currentSize -= ChunkingHelper.Constants.spaceSeparatorSize
                 }
             }
+            // Reset size tracking if we've emptied the chunk
             if currentSentences.isEmpty {
                 currentSize = 0
             }

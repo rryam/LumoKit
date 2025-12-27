@@ -96,7 +96,8 @@ struct SemanticTextHelpers {
         let lines = splitLinesWithRanges(from: text)
 
         for lineData in lines {
-            if lineData.line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+            let trimmedLine = lineData.line.trimmingCharacters(in: .whitespaces)
+            if trimmedLine.hasPrefix("```") {
                 // Save current segment
                 if !currentContent.isEmpty,
                    let firstRange = currentContent.first?.range,
@@ -123,6 +124,7 @@ struct SemanticTextHelpers {
             }
         }
 
+        // Handle any remaining content
         if !currentContent.isEmpty,
            let firstRange = currentContent.first?.range,
            let lastRange = currentContent.last?.range {

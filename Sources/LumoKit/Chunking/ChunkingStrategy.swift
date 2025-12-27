@@ -10,7 +10,15 @@ public protocol ChunkingStrategy: Sendable {
     func chunk(text: String, config: ChunkingConfig) throws -> [Chunk]
 }
 
-/// Factory for creating chunking strategies
+/// Factory for creating chunking strategy instances based on the specified type.
+///
+/// The factory abstracts the creation of different chunking strategies,
+/// allowing clients to easily switch between strategies without direct instantiation.
+///
+/// ```swift
+/// let strategy = ChunkingStrategyFactory.strategy(for: .semantic)
+/// let chunks = try strategy.chunk(text: "Your text here", config: config)
+/// ```
 public struct ChunkingStrategyFactory {
     public static func strategy(for type: ChunkingStrategyType) -> ChunkingStrategy {
         switch type {
@@ -24,31 +32,54 @@ public struct ChunkingStrategyFactory {
     }
 }
 
-/// Context information for chunk creation
+/// Context information passed during chunk creation.
+///
+/// Contains the current configuration, accumulated chunks, and a flag
+/// indicating whether more chunks will follow. Used to track state
+/// across chunk iterations.
 struct ChunkContext {
     let config: ChunkingConfig
     let chunks: [Chunk]
     let hasNext: Bool
 }
 
-/// Parameters for creating a chunk from segments
+/// Parameters for creating a chunk from text segments with range information.
+///
+/// Generic over segment type `T`. The extractor closures allow flexible
+/// extraction of text and position ranges from any segment type.
 struct SegmentChunkParameters<T> {
+    /// The segments to include in the chunk
     let segments: [T]
+    /// The separator to use between segments when joining
     let separator: String
+    /// Closure that extracts text content from a segment
     let textExtractor: (T) -> String
+    /// Closure that extracts the character range of a segment
     let rangeExtractor: (T) -> Range<String.Index>
 }
 
-/// Parameters for creating a simple chunk
+/// Parameters for creating a simple chunk with explicit position values.
+///
+/// Used when the chunk boundaries are pre-determined and need
+/// explicit start/end positions in the source text.
 struct ChunkParameters {
+    /// The text content of the chunk
     let text: String
+    /// The sequential index of this chunk
     let index: Int
+    /// The start character position in the source text
     let startPosition: Int
+    /// The end character position in the source text
     let endPosition: Int
+    /// Whether another chunk follows this one
     let hasNext: Bool
 }
 
-/// Base functionality shared across chunking strategies
+/// Internal utilities for text chunking operations.
+///
+/// This struct provides static helper methods used by all chunking
+/// strategies, including chunk creation, overlap calculation, and
+/// error wrapping. Not intended for public use.
 struct ChunkingHelper {
     /// Constants used for chunking calculations
     enum Constants {

@@ -28,11 +28,24 @@ struct WordChunker: ChunkingStrategy {
             // Check if adding this word would exceed the chunk size
             let totalSize = currentSize + wordSize + ChunkingHelper.Constants.spaceSeparatorSize
             if totalSize > config.chunkSize && !currentWords.isEmpty {
-                // Create chunk from accumulated words
-                guard let firstRange = currentWords.first?.range,
+                // Trim words to fit before creating chunk
+                trimOverlapForNextWord(
+                    currentWords: &currentWords,
+                    currentSize: &currentSize,
+                    nextWordSize: wordSize,
+                    chunkSize: config.chunkSize
+                )
+
+                // Skip chunk creation if trim emptied the words
+                guard !currentWords.isEmpty,
+                      let firstRange = currentWords.first?.range,
                       let lastRange = currentWords.last?.range else {
+                    // Reset state and continue to next word
+                    currentWords = [wordData]
+                    currentSize = wordSize
                     continue
                 }
+
                 // Build chunk text without intermediate array
                 var chunkText = ""
                 for (wordIdx, wordData) in currentWords.enumerated() {
@@ -56,7 +69,7 @@ struct WordChunker: ChunkingStrategy {
 
                 chunks.append(Chunk(text: chunkText, metadata: metadata))
 
-                // Handle overlap
+                // Handle overlap for next chunk
                 if config.overlapSize > 0 {
                     let wordStrings = currentWords.map { $0.word }
                     let overlap = ChunkingHelper.calculateOverlap(wordStrings, targetSize: config.overlapSize)
@@ -67,14 +80,14 @@ struct WordChunker: ChunkingStrategy {
                     currentWords = []
                     currentSize = 0
                 }
+            } else {
+                trimOverlapForNextWord(
+                    currentWords: &currentWords,
+                    currentSize: &currentSize,
+                    nextWordSize: wordSize,
+                    chunkSize: config.chunkSize
+                )
             }
-
-            trimOverlapForNextWord(
-                currentWords: &currentWords,
-                currentSize: &currentSize,
-                nextWordSize: wordSize,
-                chunkSize: config.chunkSize
-            )
 
             currentWords.append(wordData)
             currentSize += wordSize + (currentWords.count > 1 ? ChunkingHelper.Constants.spaceSeparatorSize : 0)
@@ -117,17 +130,21 @@ struct WordChunker: ChunkingStrategy {
         nextWordSize: Int,
         chunkSize: Int
     ) {
+        // Trim words from the front until there's room for the next word
+        var needsSeparator = false
         while !currentWords.isEmpty {
-            let separatorSize = ChunkingHelper.Constants.spaceSeparatorSize
+            let separatorSize = needsSeparator ? ChunkingHelper.Constants.spaceSeparatorSize : 0
             if currentSize + nextWordSize + separatorSize <= chunkSize {
                 break
             }
             let removed = currentWords.removeFirst()
             currentSize -= removed.word.count
-            if !currentWords.isEmpty {
+            needsSeparator = !currentWords.isEmpty
+            if needsSeparator {
                 currentSize -= ChunkingHelper.Constants.spaceSeparatorSize
             }
         }
+        // Reset size tracking if we've emptied the chunk
         if currentWords.isEmpty {
             currentSize = 0
         }

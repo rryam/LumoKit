@@ -6,7 +6,7 @@ import Testing
 @Test("Sentence chunker basic")
 func testSentenceChunkerBasic() throws {
     let text = "This is the first sentence. This is the second sentence. And here is the third sentence."
-    let config = ChunkingConfig(chunkSize: 50, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 50, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -21,7 +21,7 @@ func testSentenceChunkerBasic() throws {
 @Test("Sentence chunker with overlap")
 func testSentenceChunkerWithOverlap() throws {
     let text = "First sentence here. Second sentence here. Third sentence here. Fourth sentence here."
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 40,
         overlapPercentage: 0.2,
         strategy: .sentence
@@ -40,7 +40,7 @@ func testSentenceChunkerWithOverlap() throws {
 @Test("Sentence chunker long sentence")
 func testSentenceChunkerLongSentence() throws {
     let longSentence = String(repeating: "word ", count: 100) + "."
-    let config = ChunkingConfig(chunkSize: 50, strategy: .sentence)
+    let config = try ChunkingConfig(chunkSize: 50, strategy: .sentence)
     let strategy = SentenceChunker()
 
     let chunks = try strategy.chunk(text: longSentence, config: config)

@@ -55,12 +55,20 @@ struct SemanticChunker: ChunkingStrategy {
         var chunks: [Chunk] = []
 
         for (segmentIdx, segment) in segments.enumerated() {
-            let segmentConfig = ChunkingConfig(
-                chunkSize: config.chunkSize,
-                overlapPercentage: config.overlapPercentage,
-                strategy: config.strategy,
-                contentType: segment.isCode ? .code : .prose
-            )
+            let segmentConfig: ChunkingConfig
+            do {
+                segmentConfig = try ChunkingConfig(
+                    chunkSize: config.chunkSize,
+                    overlapPercentage: config.overlapPercentage,
+                    strategy: config.strategy,
+                    contentType: segment.isCode ? .code : .prose
+                )
+            } catch {
+                throw ChunkingHelper.wrapChunkingError(
+                    error,
+                    strategyName: "SemanticChunker.mixed (segment: \(segment.isCode ? "code" : "prose"))"
+                )
+            }
 
             let segmentChunks: [Chunk]
             do {
