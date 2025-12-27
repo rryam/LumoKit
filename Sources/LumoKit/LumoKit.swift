@@ -30,13 +30,14 @@ public final class LumoKit {
     /// - Parameters:
     ///   - url: The file URL to parse
     ///   - chunkingConfig: Optional custom chunking configuration (uses default if not provided)
+    /// - Returns: Array of document IDs that were indexed
     /// - Throws: `LumoKitError.invalidURL` if the URL is not a file URL
     /// - Throws: `LumoKitError.fileNotFound` if the file does not exist
     /// - Throws: `LumoKitError.emptyDocument` if the document has no valid content
     public func parseAndIndex(
         url: URL,
         chunkingConfig: ChunkingConfig? = nil
-    ) async throws {
+    ) async throws -> [UUID] {
         // Validate URL
         guard url.isFileURL else {
             throw LumoKitError.invalidURL
@@ -55,7 +56,7 @@ public final class LumoKit {
             throw LumoKitError.emptyDocument
         }
         let texts = chunks.map { $0.text }
-        _ = try await vectura.addDocuments(texts: texts)
+        return try await vectura.addDocuments(texts: texts)
     }
 
     /// Parse a document from a file and return chunks with metadata.
@@ -195,9 +196,10 @@ public final class LumoKit {
     ///
     /// - Parameters:
     ///   - texts: Array of text strings to index
+    /// - Returns: Array of document IDs that were indexed
     /// - Throws: Errors from VecturaKit
-    public func addDocuments(texts: [String]) async throws {
-        _ = try await vectura.addDocuments(texts: texts)
+    public func addDocuments(texts: [String]) async throws -> [UUID] {
+        try await vectura.addDocuments(texts: texts)
     }
 
     /// Returns the total number of indexed documents
