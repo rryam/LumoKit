@@ -206,7 +206,7 @@ public final class LumoKit {
     ///
     /// - Returns: The count of documents in the vector database
     public func documentCount() async throws -> Int {
-        try await vectura.getTotalDocumentCount()
+        try await vectura.documentCount
     }
 }
 
