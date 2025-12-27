@@ -92,11 +92,13 @@ struct SemanticTextHelpers {
         var segments: [ContentSegment] = []
         var currentContent: [(line: String, range: Range<String.Index>)] = []
         var inCodeBlock = false
+        var unclosedFenceCount = 0
 
         let lines = splitLinesWithRanges(from: text)
 
         for lineData in lines {
-            if lineData.line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+            let trimmedLine = lineData.line.trimmingCharacters(in: .whitespaces)
+            if trimmedLine.hasPrefix("```") {
                 // Save current segment
                 if !currentContent.isEmpty,
                    let firstRange = currentContent.first?.range,
@@ -116,13 +118,19 @@ struct SemanticTextHelpers {
                     ))
                     currentContent = []
                 }
-                inCodeBlock.toggle()
+                // Track fence depth - only toggle on properly matched pairs
+                unclosedFenceCount += 1
+                if unclosedFenceCount >= 2 {
+                    inCodeBlock.toggle()
+                    unclosedFenceCount = 0
+                }
                 // Don't include the fence line in content
             } else {
                 currentContent.append(lineData)
             }
         }
 
+        // Handle any remaining content
         if !currentContent.isEmpty,
            let firstRange = currentContent.first?.range,
            let lastRange = currentContent.last?.range {
@@ -134,10 +142,12 @@ struct SemanticTextHelpers {
                 }
                 contentText += contentLine.line
             }
+            // If there's an unclosed fence, treat remaining as prose (malformed markdown)
+            let isCode = inCodeBlock && unclosedFenceCount == 0
             segments.append(ContentSegment(
                 content: contentText,
                 range: firstRange.lowerBound..<lastRange.upperBound,
-                isCode: inCodeBlock
+                isCode: isCode
             ))
         }
 
