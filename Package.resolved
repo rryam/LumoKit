@@ -132,8 +132,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rryam/VecturaKit.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "2a2b606936c62e65ad8dd9e8cd280b123608768d"
+        "revision" : "3d8ccfa92076dbbf81783397a43ab3e7c1543bcd",
+        "version" : "2.5.1"
       }
     }
   ],
