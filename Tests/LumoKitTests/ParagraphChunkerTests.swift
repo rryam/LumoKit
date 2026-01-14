@@ -86,8 +86,14 @@ func testParagraphChunkerOversizedParagraphOverlapUsesSentenceReuse() throws {
         #expect(
             chunk.text.count <= config.chunkSize,
             """
+<<<<<<< HEAD
+            Chunk should not exceed configured size.
+            Text: '\(chunk.text)'
+            Size: \(chunk.text.count) Max: \(config.chunkSize)
+=======
             Chunk should not exceed configured size. \
             Text: '\(chunk.text)', Size: \(chunk.text.count), Max: \(config.chunkSize)
+>>>>>>> origin/main
             """
         )
     }

@@ -17,11 +17,11 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/rudrankriyam/PicoDocs.git",
-            branch: "main"
+            from: "1.0.0"
         ),
         .package(
             url: "https://github.com/rryam/VecturaKit.git",
-            branch: "main"
+            from: "2.5.1"
         )
     ],
     targets: [
