@@ -1,5 +1,5 @@
 {
-  "originHash" : "9b4732f5838a4114364d0c986df48cbb6f8d7f893aa29bf679f9b6d9da2471a9",
+  "originHash" : "602f962fe7a1f4d00decccfe5d81364e53354bd83cc87dabbba8f3c1bbb4433a",
   "pins" : [
     {
       "identity" : "lrucache",
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rudrankriyam/PicoDocs.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "fcabf8ab13ddc0c5bd3d89d54c2b08fd6c1d249d"
+        "revision" : "fcabf8ab13ddc0c5bd3d89d54c2b08fd6c1d249d",
+        "version" : "1.0.0"
       }
     },
     {
@@ -132,8 +132,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rryam/VecturaKit.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "2a2b606936c62e65ad8dd9e8cd280b123608768d"
+        "revision" : "3d8ccfa92076dbbf81783397a43ab3e7c1543bcd",
+        "version" : "2.5.1"
       }
     }
   ],
