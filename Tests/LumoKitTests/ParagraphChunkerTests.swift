@@ -12,7 +12,7 @@ func testParagraphChunkerBasic() throws {
 
     And here is the third paragraph.
     """
-    let config = ChunkingConfig(chunkSize: 100, strategy: .paragraph)
+    let config = try ChunkingConfig(chunkSize: 100, strategy: .paragraph)
     let strategy = ParagraphChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -33,7 +33,7 @@ func testParagraphChunkerWithOverlap() throws {
 
     Third paragraph.
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 30,
         overlapPercentage: 0.15,
         strategy: .paragraph
@@ -56,7 +56,7 @@ func testParagraphChunkerOversizedParagraphDoesNotEmitOversizedChunk() throws {
 
     This is a short paragraph.
     """
-    let config = ChunkingConfig(chunkSize: 60, overlapPercentage: 0.0, strategy: .paragraph)
+    let config = try ChunkingConfig(chunkSize: 60, overlapPercentage: 0.0, strategy: .paragraph)
     let strategy = ParagraphChunker()
 
     let chunks = try strategy.chunk(text: text, config: config)
@@ -74,7 +74,7 @@ func testParagraphChunkerOversizedParagraphOverlapUsesSentenceReuse() throws {
     let sentence3 = "This sentence makes it long."
     let longParagraph = "\(sentence1) \(sentence2) \(sentence3)"
 
-    let config = ChunkingConfig(chunkSize: 40, overlapPercentage: 0.5, strategy: .paragraph)
+    let config = try ChunkingConfig(chunkSize: 40, overlapPercentage: 0.5, strategy: .paragraph)
     let strategy = ParagraphChunker()
 
     let chunks = try strategy.chunk(text: longParagraph, config: config)
@@ -86,9 +86,14 @@ func testParagraphChunkerOversizedParagraphOverlapUsesSentenceReuse() throws {
         #expect(
             chunk.text.count <= config.chunkSize,
             """
+<<<<<<< HEAD
             Chunk should not exceed configured size.
             Text: '\(chunk.text)'
             Size: \(chunk.text.count) Max: \(config.chunkSize)
+=======
+            Chunk should not exceed configured size. \
+            Text: '\(chunk.text)', Size: \(chunk.text.count), Max: \(config.chunkSize)
+>>>>>>> origin/main
             """
         )
     }

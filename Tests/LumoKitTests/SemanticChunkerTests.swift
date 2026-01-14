@@ -10,7 +10,7 @@ func testSemanticChunkerProse() throws {
 
     The semantic chunker should respect natural boundaries.
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 100,
         overlapPercentage: 0.1,
         strategy: .semantic,
@@ -37,7 +37,7 @@ func testSemanticChunkerCode() throws {
         print("Hello")
     }
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 80,
         strategy: .semantic,
         contentType: .code
@@ -63,7 +63,7 @@ func testSemanticChunkerMarkdown() throws {
 
     More content here.
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 100,
         strategy: .semantic,
         contentType: .markdown
@@ -92,7 +92,7 @@ func testSemanticChunkerMixedContent() throws {
 
     More prose after the code block.
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 80,
         strategy: .semantic,
         contentType: .mixed
@@ -121,7 +121,7 @@ func testSemanticChunkerMixedContentWithUnclosedCodeFence() throws {
         return 1
     }
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 80,
         strategy: .semantic,
         contentType: .mixed
@@ -148,7 +148,7 @@ func testSemanticChunkerMarkdownConsecutiveHeaders() throws {
 
     Content under header 2.
     """
-    let config = ChunkingConfig(
+    let config = try ChunkingConfig(
         chunkSize: 80,
         strategy: .semantic,
         contentType: .markdown

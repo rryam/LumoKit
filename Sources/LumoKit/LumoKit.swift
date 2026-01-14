@@ -18,11 +18,11 @@ public final class LumoKit {
     /// - Throws: Errors from VecturaKit initialization
     public init(
         config: VecturaConfig,
-        chunkingConfig: ChunkingConfig = ChunkingConfig()
+        chunkingConfig: ChunkingConfig? = nil
     ) async throws {
         let embedder = SwiftEmbedder()
         self.vectura = try await VecturaKit(config: config, embedder: embedder)
-        self.defaultChunkingConfig = chunkingConfig
+        self.defaultChunkingConfig = try chunkingConfig ?? ChunkingConfig()
     }
 
     /// Parse and index a document from a given file URL
@@ -30,12 +30,14 @@ public final class LumoKit {
     /// - Parameters:
     ///   - url: The file URL to parse
     ///   - chunkingConfig: Optional custom chunking configuration (uses default if not provided)
+    /// - Returns: Array of document IDs that were indexed
     /// - Throws: `LumoKitError.invalidURL` if the URL is not a file URL
     /// - Throws: `LumoKitError.fileNotFound` if the file does not exist
+    /// - Throws: `LumoKitError.emptyDocument` if the document has no valid content
     public func parseAndIndex(
         url: URL,
         chunkingConfig: ChunkingConfig? = nil
-    ) async throws {
+    ) async throws -> [UUID] {
         // Validate URL
         guard url.isFileURL else {
             throw LumoKitError.invalidURL
@@ -51,11 +53,10 @@ public final class LumoKit {
         )
 
         guard !chunks.isEmpty else {
-            print("LumoKit: No valid content to index from document at \(url.lastPathComponent).")
-            return
+            throw LumoKitError.emptyDocument
         }
         let texts = chunks.map { $0.text }
-        _ = try await vectura.addDocuments(texts: texts)
+        return try await vectura.addDocuments(texts: texts)
     }
 
     /// Parse a document from a file and return chunks with metadata.
@@ -125,16 +126,14 @@ public final class LumoKit {
     ///   - doc: The PicoDocument to check
     ///   - stage: The stage name for error context
     private func checkDocumentStatus(_ doc: PicoDocument, stage: String) async throws {
-        let error: Error? = await MainActor.run {
-            if case .failed(let err) = doc.status {
-                return err
+        // Execute on MainActor to access main actor-isolated status
+        let error = await MainActor.run { () -> Error? in
+            guard case .failed(let err) = doc.status else {
+                return nil
             }
-            return nil
+            return err
         }
-
-        guard let error = error else {
-            return
-        }
+        guard let error = error else { return }
 
         if let picoError = error as? PicoDocsError {
             switch picoError {
@@ -183,9 +182,31 @@ public final class LumoKit {
         return try await vectura.search(query: .text(query), numResults: numResults, threshold: threshold)
     }
 
-    /// Reset the vector database
+    /// Clears all indexed documents from the vector database.
+    ///
+    /// Use this method to remove all indexed content when you need to
+    /// start fresh. Note that this operation cannot be undone.
+    ///
+    /// - Throws: `LumoKitError.databaseError` if the reset fails
     public func resetDB() async throws {
         try await vectura.reset()
+    }
+
+    /// Add raw text documents to the vector database
+    ///
+    /// - Parameters:
+    ///   - texts: Array of text strings to index
+    /// - Returns: Array of document IDs that were indexed
+    /// - Throws: Errors from VecturaKit
+    public func addDocuments(texts: [String]) async throws -> [UUID] {
+        try await vectura.addDocuments(texts: texts)
+    }
+
+    /// Returns the total number of indexed documents
+    ///
+    /// - Returns: The count of documents in the vector database
+    public func documentCount() async throws -> Int {
+        try await vectura.documentCount
     }
 }
 
