@@ -1,4 +1,6 @@
 # LumoKit
+[![Star History Chart](https://api.star-history.com/svg?repos=rryam/LumoKit&type=Date)](https://star-history.com/#rryam/LumoKit&Date)
+
 
 LumoKit is a Swift package for building on-device **Retrieval-Augmented Generation (RAG)** workflows. It combines **PicoDocs** for document ingestion with **VecturaKit** for vector storage and semantic search, giving you an end-to-end pipeline for creating searchable knowledge bases.
 
