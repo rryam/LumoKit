@@ -32,15 +32,15 @@ Deepen your understanding of AI and iOS development with these books:
 - **Content-Aware:** Different handling for prose, code, markdown, and mixed content
 - **Semantic Search:** Vector search powered by VecturaKit
 - **Async API:** Built with Swift concurrency
-- **Database Management:** Reset or re-index on demand
+- **Database Management:** Reset, delete chunks, or re-index on demand
 
 ## API Overview
 
 ```swift
 public final class LumoKit {
-    public init(config: VecturaConfig, chunkingConfig: ChunkingConfig = ChunkingConfig()) async throws
+    public init(config: VecturaConfig, chunkingConfig: ChunkingConfig? = nil) async throws
 
-    public func parseAndIndex(url: URL, chunkingConfig: ChunkingConfig? = nil) async throws
+    public func parseAndIndex(url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [UUID]
     public func parseDocument(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [Chunk]
 
     public func chunkText(_ text: String, config: ChunkingConfig) throws -> [Chunk]
@@ -51,6 +51,9 @@ public final class LumoKit {
         threshold: Float = 0.7
     ) async throws -> [VecturaSearchResult]
 
+    public func addDocuments(texts: [String]) async throws -> [UUID]
+    public func deleteChunks(ids: [UUID]) async throws
+    public func documentCount() async throws -> Int
     public func resetDB() async throws
 }
 
@@ -274,6 +277,16 @@ for chunk in chunks {
     print("Content type: \(chunk.metadata.contentType)")
     print("Content: \(chunk.text)")
 }
+```
+
+### Delete Indexed Chunks
+
+```swift
+let url = URL(fileURLWithPath: "/path/to/document.pdf")
+let chunkIDs = try await lumoKit.parseAndIndex(url: url)
+
+// Later, when the document is deleted in your app
+try await lumoKit.deleteChunks(ids: chunkIDs)
 ```
 
 ### Custom Storage Location

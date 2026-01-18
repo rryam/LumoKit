@@ -202,6 +202,18 @@ public final class LumoKit {
         try await vectura.addDocuments(texts: texts)
     }
 
+    /// Deletes chunks from the vector database.
+    ///
+    /// Use this method when you need to remove specific chunks, such as
+    /// when a document is deleted in your app.
+    ///
+    /// - Parameters:
+    ///   - ids: Array of chunk IDs to delete
+    /// - Throws: Errors from VecturaKit
+    public func deleteChunks(ids: [UUID]) async throws {
+        try await vectura.deleteDocuments(ids: ids)
+    }
+
     /// Returns the total number of indexed documents
     ///
     /// - Returns: The count of documents in the vector database
