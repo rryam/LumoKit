@@ -57,11 +57,7 @@ func testChunkingVerySmallChunkSize() throws {
 
 @Test("Invalid chunk size")
 func testInvalidChunkSize() throws {
-    let text = "Some text"
-    let config = try ChunkingConfig(chunkSize: 0, strategy: .sentence)
-    let strategy = SentenceChunker()
-
     #expect(throws: LumoKitError.invalidChunkSize) {
-        try strategy.chunk(text: text, config: config)
+        _ = try ChunkingConfig(chunkSize: 0, strategy: .sentence)
     }
 }

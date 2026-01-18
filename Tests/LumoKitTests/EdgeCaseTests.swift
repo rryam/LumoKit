@@ -172,12 +172,8 @@ func testSingleCharacterChunkSize() throws {
 
 @Test("Negative chunk size throws error")
 func testNegativeChunkSize() throws {
-    let text = "Test"
-    let config = try ChunkingConfig(chunkSize: -1, strategy: .sentence)
-    let strategy = SentenceChunker()
-
     #expect(throws: LumoKitError.invalidChunkSize) {
-        try strategy.chunk(text: text, config: config)
+        _ = try ChunkingConfig(chunkSize: -1, strategy: .sentence)
     }
 }
 
