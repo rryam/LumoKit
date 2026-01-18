@@ -50,6 +50,7 @@ struct SemanticMarkdownChunker {
                         strategyName: "SemanticChunker.markdown (fallback to SentenceChunker for oversized section)"
                     )
                 }
+                continue
             }
 
             if currentSize + sectionSize > config.chunkSize && !currentSections.isEmpty {
