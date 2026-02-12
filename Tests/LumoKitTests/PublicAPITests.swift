@@ -83,7 +83,7 @@ func testLumoKitSearchParameterValidation() async throws {
         try? FileManager.default.removeItem(at: testFile)
     }
 
-    try await lumoKit.parseAndIndex(url: testFile)
+    _ = try await lumoKit.parseAndIndex(url: testFile)
 
     // Test invalid numResults (zero)
     do {

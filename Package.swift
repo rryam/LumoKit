@@ -21,7 +21,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/rryam/VecturaKit.git",
-            from: "2.5.1"
+            branch: "main"
         )
     ],
     targets: [
