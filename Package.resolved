@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rudrankriyam/PicoDocs.git",
       "state" : {
-        "revision" : "fcabf8ab13ddc0c5bd3d89d54c2b08fd6c1d249d",
-        "version" : "1.0.0"
+        "revision" : "5386f4db95da841b3f6e37e698baec2d0055afd6",
+        "version" : "1.0.1"
       }
     },
     {
