@@ -9,6 +9,14 @@ struct ContentSegment {
 
 /// Text extraction and processing helpers for semantic chunking
 struct SemanticTextHelpers {
+    private static func isWhitespaceOnly(_ line: String) -> Bool {
+        line.allSatisfy(\.isWhitespace)
+    }
+
+    private static func trimmedLeadingWhitespace(_ line: String) -> Substring {
+        line.drop(while: \.isWhitespace)
+    }
+
     static func splitLinesWithRanges(from text: String) -> [(line: String, range: Range<String.Index>)] {
         var result: [(line: String, range: Range<String.Index>)] = []
         text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: .byLines) { line, range, _, _ in
@@ -26,7 +34,7 @@ struct SemanticTextHelpers {
         var currentBlock: [(line: String, range: Range<String.Index>)] = []
 
         for lineData in lines {
-            if lineData.line.trimmingCharacters(in: .whitespaces).isEmpty {
+            if isWhitespaceOnly(lineData.line) {
                 if !currentBlock.isEmpty {
                     blocks.append(currentBlock)
                     currentBlock = []
@@ -49,7 +57,7 @@ struct SemanticTextHelpers {
         var currentSection: [(line: String, range: Range<String.Index>)] = []
 
         for lineData in lines {
-            if lineData.line.trimmingCharacters(in: .whitespaces).hasPrefix("#") {
+            if trimmedLeadingWhitespace(lineData.line).hasPrefix("#") {
                 if !currentSection.isEmpty,
                    let firstRange = currentSection.first?.range,
                    let lastRange = currentSection.last?.range {
@@ -96,7 +104,7 @@ struct SemanticTextHelpers {
         let lines = splitLinesWithRanges(from: text)
 
         for lineData in lines {
-            let trimmedLine = lineData.line.trimmingCharacters(in: .whitespaces)
+            let trimmedLine = trimmedLeadingWhitespace(lineData.line)
             if trimmedLine.hasPrefix("```") {
                 // Save current segment
                 if !currentContent.isEmpty,

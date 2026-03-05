@@ -20,7 +20,7 @@ struct SentenceChunker: ChunkingStrategy {
         }
 
         var chunks: [Chunk] = []
-        var currentSentences: [(text: String, range: Range<String.Index>)] = []
+        var currentSentences: ArraySlice<(text: String, range: Range<String.Index>)> = []
         var currentSize = 0
 
         for sentenceData in sentences {
@@ -39,9 +39,8 @@ struct SentenceChunker: ChunkingStrategy {
                 // Split long sentence into word-based chunks
                 do {
                     let wordChunks = try WordChunker().chunk(text: sentence, config: config)
-
+                    let baseOffset = text.distance(from: text.startIndex, to: sentenceData.range.lowerBound)
                     for wordChunk in wordChunks {
-                        let baseOffset = text.distance(from: text.startIndex, to: sentenceData.range.lowerBound)
                         let adjustedMetadata = ChunkMetadata(
                             index: chunks.count,
                             startPosition: baseOffset + wordChunk.metadata.startPosition,
@@ -74,12 +73,13 @@ struct SentenceChunker: ChunkingStrategy {
 
                 // Handle overlap
                 if config.overlapSize > 0 {
-                    let overlap = ChunkingHelper.calculateOverlap(
-                        currentSentences.map { $0.text },
-                        targetSize: config.overlapSize
+                    let overlap = ChunkingHelper.calculateOverlapMetrics(
+                        currentSentences,
+                        targetSize: config.overlapSize,
+                        segmentSize: { $0.text.count }
                     )
-                    let overlapCount = overlap.segments.count
-                    currentSentences = overlapCount > 0 ? Array(currentSentences.suffix(overlapCount)) : []
+                    let overlapCount = overlap.count
+                    currentSentences = overlapCount > 0 ? currentSentences.suffix(overlapCount) : []
                     currentSize = overlap.size
                 } else {
                     currentSentences = []
@@ -88,23 +88,14 @@ struct SentenceChunker: ChunkingStrategy {
             }
 
             // Trim sentences from the front until there's room for the new sentence
-            var needsSeparator = false
-            while !currentSentences.isEmpty {
-                let separatorSize = needsSeparator ? ChunkingHelper.Constants.spaceSeparatorSize : 0
-                if currentSize + sentenceSize + separatorSize <= config.chunkSize {
-                    break
-                }
-                let removed = currentSentences.removeFirst()
-                currentSize -= removed.text.count
-                needsSeparator = !currentSentences.isEmpty
-                if needsSeparator {
-                    currentSize -= ChunkingHelper.Constants.spaceSeparatorSize
-                }
-            }
-            // Reset size tracking if we've emptied the chunk
-            if currentSentences.isEmpty {
-                currentSize = 0
-            }
+            ChunkingHelper.trimFrontForNextSegment(
+                segments: &currentSentences,
+                currentSize: &currentSize,
+                nextSegmentSize: sentenceSize,
+                chunkSize: config.chunkSize,
+                separatorSize: ChunkingHelper.Constants.spaceSeparatorSize,
+                segmentSize: { $0.text.count }
+            )
 
             currentSentences.append((sentence, sentenceData.range))
             currentSize += sentenceSize + (currentSentences.count > 1 ? ChunkingHelper.Constants.spaceSeparatorSize : 0)
@@ -135,7 +126,7 @@ struct SentenceChunker: ChunkingStrategy {
     }
 
     private func flushChunk(
-        from sentences: [(text: String, range: Range<String.Index>)],
+        from sentences: ArraySlice<(text: String, range: Range<String.Index>)>,
         to chunks: inout [Chunk],
         text: String,
         config: ChunkingConfig,

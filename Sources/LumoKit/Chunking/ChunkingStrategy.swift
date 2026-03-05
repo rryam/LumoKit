@@ -45,17 +45,17 @@ struct ChunkContext {
 
 /// Parameters for creating a chunk from text segments with range information.
 ///
-/// Generic over segment type `T`. The extractor closures allow flexible
-/// extraction of text and position ranges from any segment type.
-struct SegmentChunkParameters<T> {
+/// Generic over segment collection `C`. The extractor closures allow flexible
+/// extraction of text and position ranges from any segment element type.
+struct SegmentChunkParameters<C: BidirectionalCollection> {
     /// The segments to include in the chunk
-    let segments: [T]
+    let segments: C
     /// The separator to use between segments when joining
     let separator: String
     /// Closure that extracts text content from a segment
-    let textExtractor: (T) -> String
+    let textExtractor: (C.Element) -> String
     /// Closure that extracts the character range of a segment
-    let rangeExtractor: (T) -> Range<String.Index>
+    let rangeExtractor: (C.Element) -> Range<String.Index>
 }
 
 /// Parameters for creating a simple chunk with explicit position values.
@@ -134,8 +134,8 @@ struct ChunkingHelper {
     ///   - text: The original full text (for position calculation)
     ///   - context: Context containing config, chunks, and hasNext info
     /// - Returns: A new Chunk, or nil if segments are empty
-    static func createChunkFromSegments<T>(
-        parameters: SegmentChunkParameters<T>,
+    static func createChunkFromSegments<C: BidirectionalCollection>(
+        parameters: SegmentChunkParameters<C>,
         text: String,
         context: ChunkContext
     ) -> Chunk? {
@@ -146,18 +146,18 @@ struct ChunkingHelper {
 
         let firstRange = parameters.rangeExtractor(firstSegment)
         let lastRange = parameters.rangeExtractor(lastSegment)
+        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
+        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 
         // Build chunk text without intermediate array allocations
         var chunkText = ""
+        chunkText.reserveCapacity(max(0, endPos - startPos))
         for (idx, segment) in parameters.segments.enumerated() {
             if idx > 0 {
                 chunkText += parameters.separator
             }
             chunkText += parameters.textExtractor(segment)
         }
-
-        let startPos = text.distance(from: text.startIndex, to: firstRange.lowerBound)
-        let endPos = text.distance(from: text.startIndex, to: lastRange.upperBound)
 
         let metadata = ChunkMetadata(
             index: context.chunks.count,
@@ -172,32 +172,82 @@ struct ChunkingHelper {
         return Chunk(text: chunkText, metadata: metadata)
     }
 
-    /// Calculate overlap for text segments
+    /// Calculate overlap metrics for a segment list.
+    ///
+    /// Avoids intermediate array allocations by returning only the count
+    /// of retained trailing segments and their total size.
     /// - Parameters:
-    ///   - segments: Array of text segments
-    ///   - targetSize: Target size for overlap in characters
-    ///   - separator: Separator size between segments (default: 1 for space)
-    /// - Returns: Tuple of overlapping segments and their total size
-    static func calculateOverlap(
-        _ segments: [String],
+    ///   - segments: Segment collection
+    ///   - targetSize: Target overlap size in characters
+    ///   - separator: Separator size between segments
+    ///   - segmentSize: Closure returning a segment's size in characters
+    /// - Returns: Tuple containing overlap segment count and overlap size
+    static func calculateOverlapMetrics<C: BidirectionalCollection>(
+        _ segments: C,
         targetSize: Int,
-        separator: Int = Constants.spaceSeparatorSize
-    ) -> (segments: [String], size: Int) {
-        var overlapSegments: [String] = []
+        separator: Int = Constants.spaceSeparatorSize,
+        segmentSize: (C.Element) -> Int
+    ) -> (count: Int, size: Int) {
+        guard targetSize > 0, !segments.isEmpty else {
+            return (0, 0)
+        }
+
+        var overlapCount = 0
         var overlapSize = 0
 
         for segment in segments.reversed() {
-            let requiredSize = segment.count + (overlapSegments.isEmpty ? 0 : separator)
+            let requiredSize = segmentSize(segment) + (overlapCount == 0 ? 0 : separator)
             if overlapSize + requiredSize <= targetSize {
-                overlapSegments.insert(segment, at: 0)
+                overlapCount += 1
                 overlapSize += requiredSize
             } else {
                 break
             }
         }
 
-        return (overlapSegments, overlapSize)
+        return (overlapCount, overlapSize)
     }
+
+    // swiftlint:disable function_parameter_count
+    /// Trims segments from the front until adding the next segment fits in chunk size.
+    ///
+    /// Uses `ArraySlice.removeFirst()` to avoid repeated element shifts.
+    static func trimFrontForNextSegment<T>(
+        segments: inout ArraySlice<T>,
+        currentSize: inout Int,
+        nextSegmentSize: Int,
+        chunkSize: Int,
+        separatorSize: Int,
+        segmentSize: (T) -> Int
+    ) {
+        var removeCount = 0
+        var updatedSize = currentSize
+
+        for segment in segments {
+            let remainingCount = segments.count - removeCount
+            let requiredSeparator = remainingCount > 0 ? separatorSize : 0
+            if updatedSize + nextSegmentSize + requiredSeparator <= chunkSize {
+                break
+            }
+
+            updatedSize -= segmentSize(segment)
+            let remainingAfterRemoval = remainingCount - 1
+            if remainingAfterRemoval > 0 {
+                updatedSize -= separatorSize
+            }
+            removeCount += 1
+        }
+
+        if removeCount > 0 {
+            segments = segments.dropFirst(removeCount)
+        }
+        if segments.isEmpty {
+            currentSize = 0
+        } else {
+            currentSize = updatedSize
+        }
+    }
+    // swiftlint:enable function_parameter_count
 
     /// Creates a chunk with explicit position values
     /// - Parameters:

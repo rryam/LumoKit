@@ -23,7 +23,7 @@ struct ParagraphChunker: ChunkingStrategy {
         }
 
         var chunks: [Chunk] = []
-        var currentParagraphs: [(text: String, range: Range<String.Index>)] = []
+        var currentParagraphs: ArraySlice<(text: String, range: Range<String.Index>)> = []
         var currentSize = 0
 
         for paragraphData in paragraphs {
@@ -45,9 +45,8 @@ struct ParagraphChunker: ChunkingStrategy {
                         text: paragraph,
                         config: config
                     )
-
+                    let baseOffset = text.distance(from: text.startIndex, to: paragraphData.range.lowerBound)
                     for sentenceChunk in sentenceChunks {
-                        let baseOffset = text.distance(from: text.startIndex, to: paragraphData.range.lowerBound)
                         let adjustedMetadata = ChunkMetadata(
                             index: chunks.count,
                             startPosition: baseOffset + sentenceChunk.metadata.startPosition,
@@ -80,13 +79,14 @@ struct ParagraphChunker: ChunkingStrategy {
 
                 // Handle overlap
                 if config.overlapSize > 0 {
-                    let overlap = ChunkingHelper.calculateOverlap(
-                        currentParagraphs.map { $0.text },
+                    let overlap = ChunkingHelper.calculateOverlapMetrics(
+                        currentParagraphs,
                         targetSize: config.overlapSize,
-                        separator: ChunkingHelper.Constants.paragraphSeparatorSize
+                        separator: ChunkingHelper.Constants.paragraphSeparatorSize,
+                        segmentSize: { $0.text.count }
                     )
-                    let overlapCount = overlap.segments.count
-                    currentParagraphs = overlapCount > 0 ? Array(currentParagraphs.suffix(overlapCount)) : []
+                    let overlapCount = overlap.count
+                    currentParagraphs = overlapCount > 0 ? currentParagraphs.suffix(overlapCount) : []
                     currentSize = overlap.size
                 } else {
                     currentParagraphs = []
@@ -95,23 +95,14 @@ struct ParagraphChunker: ChunkingStrategy {
             }
 
             // Trim paragraphs from the front until there's room for the new paragraph
-            var needsSeparator = false
-            while !currentParagraphs.isEmpty {
-                let separatorSize = needsSeparator ? ChunkingHelper.Constants.paragraphSeparatorSize : 0
-                if currentSize + paragraphSize + separatorSize <= config.chunkSize {
-                    break
-                }
-                let removed = currentParagraphs.removeFirst()
-                currentSize -= removed.text.count
-                needsSeparator = !currentParagraphs.isEmpty
-                if needsSeparator {
-                    currentSize -= ChunkingHelper.Constants.paragraphSeparatorSize
-                }
-            }
-            // Reset size tracking if we've emptied the chunk
-            if currentParagraphs.isEmpty {
-                currentSize = 0
-            }
+            ChunkingHelper.trimFrontForNextSegment(
+                segments: &currentParagraphs,
+                currentSize: &currentSize,
+                nextSegmentSize: paragraphSize,
+                chunkSize: config.chunkSize,
+                separatorSize: ChunkingHelper.Constants.paragraphSeparatorSize,
+                segmentSize: { $0.text.count }
+            )
 
             currentParagraphs.append((paragraph, paragraphData.range))
             let separatorSize = currentParagraphs.count > 1 ? ChunkingHelper.Constants.paragraphSeparatorSize : 0
@@ -143,7 +134,7 @@ struct ParagraphChunker: ChunkingStrategy {
     }
 
     private func flushChunk(
-        from paragraphs: [(text: String, range: Range<String.Index>)],
+        from paragraphs: ArraySlice<(text: String, range: Range<String.Index>)>,
         to chunks: inout [Chunk],
         text: String,
         config: ChunkingConfig,
