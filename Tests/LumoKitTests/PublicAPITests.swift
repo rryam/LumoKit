@@ -136,3 +136,63 @@ func testLumoKitStrategyFactory() {
     let semanticStrategy = ChunkingStrategyFactory.strategy(for: .semantic)
     #expect(semanticStrategy is SemanticChunker)
 }
+
+@Test("LumoKit parseDocument URL validation")
+func testLumoKitParseDocumentURLValidation() async throws {
+    let config = try VecturaConfig(name: "test-db-parse-url-validation")
+    let lumoKit = try await LumoKit(config: config)
+
+    let nonFileURL = URL(string: "https://example.com/test.txt")!
+    await #expect(throws: LumoKitError.invalidURL) {
+        _ = try await lumoKit.parseDocument(from: nonFileURL)
+    }
+}
+
+@Test("LumoKit parseAndIndex URL validation")
+func testLumoKitParseAndIndexURLValidation() async throws {
+    let config = try VecturaConfig(name: "test-db-index-url-validation")
+    let lumoKit = try await LumoKit(config: config)
+
+    let nonFileURL = URL(string: "https://example.com/test.txt")!
+    await #expect(throws: LumoKitError.invalidURL) {
+        _ = try await lumoKit.parseAndIndex(url: nonFileURL)
+    }
+}
+
+@Test("LumoKit file not found validation")
+func testLumoKitFileNotFoundValidation() async throws {
+    let config = try VecturaConfig(name: "test-db-file-not-found")
+    let lumoKit = try await LumoKit(config: config)
+
+    let missingURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("lumo-missing-\(UUID().uuidString).txt")
+
+    await #expect(throws: LumoKitError.fileNotFound) {
+        _ = try await lumoKit.parseDocument(from: missingURL)
+    }
+
+    await #expect(throws: LumoKitError.fileNotFound) {
+        _ = try await lumoKit.parseAndIndex(url: missingURL)
+    }
+}
+
+@Test("LumoKit empty file handling")
+func testLumoKitEmptyFileHandling() async throws {
+    let config = try VecturaConfig(name: "test-db-empty-file")
+    let lumoKit = try await LumoKit(config: config)
+
+    let tempDir = FileManager.default.temporaryDirectory
+    let emptyFile = tempDir.appendingPathComponent("lumo-empty-\(UUID().uuidString).txt")
+    try "".write(to: emptyFile, atomically: true, encoding: .utf8)
+    defer {
+        try? FileManager.default.removeItem(at: emptyFile)
+    }
+
+    await #expect(throws: LumoKitError.emptyDocument) {
+        _ = try await lumoKit.parseDocument(from: emptyFile)
+    }
+
+    await #expect(throws: LumoKitError.emptyDocument) {
+        _ = try await lumoKit.parseAndIndex(url: emptyFile)
+    }
+}

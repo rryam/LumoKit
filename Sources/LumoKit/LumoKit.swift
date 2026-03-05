@@ -38,23 +38,7 @@ public final class LumoKit {
         url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws -> [UUID] {
-        // Validate URL
-        guard url.isFileURL else {
-            throw LumoKitError.invalidURL
-        }
-
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw LumoKitError.fileNotFound
-        }
-
-        let chunks = try await parseDocument(
-            from: url,
-            chunkingConfig: chunkingConfig
-        )
-
-        guard !chunks.isEmpty else {
-            throw LumoKitError.emptyDocument
-        }
+        let chunks = try await parseChunks(from: url, chunkingConfig: chunkingConfig)
         let texts = chunks.map { $0.text }
         return try await vectura.addDocuments(texts: texts)
     }
@@ -67,12 +51,52 @@ public final class LumoKit {
     /// - Returns: Array of chunks with metadata (text, position, overlap info, content type, etc.)
     /// - Throws: `LumoKitError.invalidURL` if the URL is not a file URL
     /// - Throws: `LumoKitError.fileNotFound` if the file does not exist
+    /// - Throws: `LumoKitError.emptyDocument` if the document has no valid content
     /// - Throws: `LumoKitError.unsupportedFileType` if the file type is not supported
     public func parseDocument(
         from url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws -> [Chunk] {
-        // Validate URL
+        let chunks = try await parseChunks(from: url, chunkingConfig: chunkingConfig)
+
+        var chunksWithSource: [Chunk] = []
+        chunksWithSource.reserveCapacity(chunks.count)
+
+        let sourceName = url.lastPathComponent
+        for chunk in chunks {
+            chunksWithSource.append(
+                Chunk(
+                    text: chunk.text,
+                    metadata: ChunkMetadata(
+                        index: chunk.metadata.index,
+                        startPosition: chunk.metadata.startPosition,
+                        endPosition: chunk.metadata.endPosition,
+                        hasOverlapWithPrevious: chunk.metadata.hasOverlapWithPrevious,
+                        hasOverlapWithNext: chunk.metadata.hasOverlapWithNext,
+                        contentType: chunk.metadata.contentType,
+                        source: sourceName
+                    )
+                )
+            )
+        }
+        return chunksWithSource
+    }
+
+    private func parseChunks(
+        from url: URL,
+        chunkingConfig: ChunkingConfig?
+    ) async throws -> [Chunk] {
+        try validateInputURL(url)
+        let fullContent = try await loadDocumentContent(from: url)
+        let config = chunkingConfig ?? defaultChunkingConfig
+        let chunks = try chunkText(fullContent, config: config)
+        guard !chunks.isEmpty else {
+            throw LumoKitError.emptyDocument
+        }
+        return chunks
+    }
+
+    private func validateInputURL(_ url: URL) throws {
         guard url.isFileURL else {
             throw LumoKitError.invalidURL
         }
@@ -80,44 +104,31 @@ public final class LumoKit {
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw LumoKitError.fileNotFound
         }
+    }
 
+    private func loadDocumentContent(from url: URL) async throws -> String {
         let doc = await PicoDocument(url: url)
 
         // Check if file type is supported
         try await checkDocumentStatus(doc, stage: "initialization")
 
         await doc.fetch()
-
-        // Check status after fetch
         try await checkDocumentStatus(doc, stage: "fetch")
 
         await doc.parse(to: .markdown)
-
-        // Check status after parse
         try await checkDocumentStatus(doc, stage: "parse")
 
-        guard let fullContent = await doc.exportedContent?.joined(separator: "\n") else {
+        guard let exportedContent = await doc.exportedContent else {
             throw LumoKitError.emptyDocument
         }
 
-        let config = chunkingConfig ?? defaultChunkingConfig
-        let chunks = try chunkText(fullContent, config: config)
-
-        // Populate source metadata from URL
-        let source = url.lastPathComponent
-        return chunks.map { chunk in
-            Chunk(
-                text: chunk.text,
-                metadata: ChunkMetadata(
-                    index: chunk.metadata.index,
-                    startPosition: chunk.metadata.startPosition,
-                    endPosition: chunk.metadata.endPosition,
-                    hasOverlapWithPrevious: chunk.metadata.hasOverlapWithPrevious,
-                    hasOverlapWithNext: chunk.metadata.hasOverlapWithNext,
-                    contentType: chunk.metadata.contentType,
-                    source: source
-                )
-            )
+        switch exportedContent.count {
+        case 0:
+            throw LumoKitError.emptyDocument
+        case 1:
+            return exportedContent[0]
+        default:
+            return exportedContent.joined(separator: "\n")
         }
     }
 
@@ -142,10 +153,10 @@ public final class LumoKit {
             case .emptyDocument:
                 throw LumoKitError.emptyDocument
             default:
-                throw LumoKitError.chunkingFailed(strategy: "PicoDocs", underlyingError: error)
+                throw LumoKitError.chunkingFailed(strategy: "PicoDocs.\(stage)", underlyingError: error)
             }
         } else {
-            throw LumoKitError.chunkingFailed(strategy: "PicoDocs", underlyingError: error)
+            throw LumoKitError.chunkingFailed(strategy: "PicoDocs.\(stage)", underlyingError: error)
         }
     }
 
