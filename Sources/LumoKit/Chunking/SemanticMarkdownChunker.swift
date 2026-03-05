@@ -6,7 +6,7 @@ struct SemanticMarkdownChunker {
         let sections = SemanticTextHelpers.extractMarkdownSections(from: text)
 
         var chunks: [Chunk] = []
-        var currentSections: [(section: String, range: Range<String.Index>)] = []
+        var currentSections: ArraySlice<(section: String, range: Range<String.Index>)> = []
         var currentSize = 0
 
         for (idx, sectionData) in sections.enumerated() {
@@ -63,15 +63,15 @@ struct SemanticMarkdownChunker {
                 )
 
                 if config.overlapSize > 0 && idx < sections.count - 1 {
-                    let sectionTexts = currentSections.map { $0.section }
-                    let overlap = ChunkingHelper.calculateOverlap(
-                        sectionTexts,
+                    let overlap = ChunkingHelper.calculateOverlapMetrics(
+                        currentSections,
                         targetSize: config.overlapSize,
-                        separator: ChunkingHelper.Constants.paragraphSeparatorSize
+                        separator: ChunkingHelper.Constants.paragraphSeparatorSize,
+                        segmentSize: { $0.section.count }
                     )
 
-                    if !overlap.segments.isEmpty {
-                        currentSections = Array(currentSections.suffix(overlap.segments.count))
+                    if overlap.count > 0 {
+                        currentSections = currentSections.suffix(overlap.count)
                         currentSize = overlap.size
                     } else {
                         currentSections = []
@@ -102,7 +102,7 @@ struct SemanticMarkdownChunker {
     }
 
     private func flushMarkdownSections(
-        from sections: [(section: String, range: Range<String.Index>)],
+        from sections: ArraySlice<(section: String, range: Range<String.Index>)>,
         to chunks: inout [Chunk],
         text: String,
         config: ChunkingConfig,
