@@ -38,7 +38,11 @@ Deepen your understanding of AI and iOS development with these books:
 
 ```swift
 public final class LumoKit {
-    public init(config: VecturaConfig, chunkingConfig: ChunkingConfig? = nil) async throws
+    public init(
+        config: VecturaConfig,
+        chunkingConfig: ChunkingConfig? = nil,
+        modelSource: VecturaModelSource = .default
+    ) async throws
 
     public func parseAndIndex(url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [UUID]
     public func parseDocument(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [Chunk]
@@ -134,6 +138,22 @@ let chunkingConfig = ChunkingConfig(
 let lumoKit = try await LumoKit(
     config: vecturaConfig,
     chunkingConfig: chunkingConfig
+)
+
+// Optionally choose a specific embedding model.
+// Use a separate store when switching models so stored vector dimensions stay consistent.
+let customModelConfig = VecturaConfig(
+    name: "knowledge-base-retrieval",
+    searchOptions: .init(
+        defaultNumResults: 10,
+        minThreshold: 0.7
+    )
+)
+
+let customModelLumoKit = try await LumoKit(
+    config: customModelConfig,
+    chunkingConfig: chunkingConfig,
+    modelSource: .id("minishlab/potion-retrieval-32M")
 )
 
 // Parse and index a document
