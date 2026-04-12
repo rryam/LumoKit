@@ -40,6 +40,31 @@ func testLumoKitPublicAPI() async throws {
     try await lumoKit.resetDB()
 }
 
+@Test("LumoKit supports custom embedding model selection")
+func testLumoKitCustomModelSource() async throws {
+    let config = try VecturaConfig(name: "test-db-custom-model")
+    let lumoKit = try await LumoKit(
+        config: config,
+        modelSource: .id("minishlab/potion-base-2M")
+    )
+
+    let ids = try await lumoKit.addDocuments(texts: [
+        "Milk, eggs, and bread from the grocery store.",
+        "The team discussed the product roadmap and Q3 priorities."
+    ])
+
+    #expect(ids.count == 2, "Should index documents with the selected embedding model")
+
+    let results = try await lumoKit.semanticSearch(
+        query: "What did the team discuss?",
+        numResults: 1,
+        threshold: 0.0
+    )
+    #expect(!results.isEmpty, "Should return search results when using a custom model source")
+
+    try await lumoKit.resetDB()
+}
+
 @Test("LumoKit source metadata")
 func testLumoKitSourceMetadata() async throws {
     let config = try VecturaConfig(name: "test-db-source")
