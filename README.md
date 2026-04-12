@@ -44,6 +44,12 @@ public final class LumoKit {
         modelSource: VecturaModelSource = .default
     ) async throws
 
+    public init(
+        config: VecturaConfig,
+        chunkingConfig: ChunkingConfig? = nil,
+        embedder: VecturaEmbedder
+    ) async throws
+
     public func parseAndIndex(url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [UUID]
     public func parseDocument(from url: URL, chunkingConfig: ChunkingConfig? = nil) async throws -> [Chunk]
 
@@ -156,6 +162,21 @@ let customModelLumoKit = try await LumoKit(
     modelSource: .id("minishlab/potion-retrieval-32M")
 )
 
+// Or provide any Vectura embedder directly
+let customEmbedderConfig = VecturaConfig(
+    name: "knowledge-base-multilingual",
+    searchOptions: .init(
+        defaultNumResults: 10,
+        minThreshold: 0.7
+    )
+)
+
+let customEmbedderLumoKit = try await LumoKit(
+    config: customEmbedderConfig,
+    chunkingConfig: chunkingConfig,
+    embedder: SwiftEmbedder(modelSource: .id("intfloat/multilingual-e5-small"))
+)
+
 // Parse and index a document
 let url = URL(fileURLWithPath: "/path/to/document.pdf")
 try await lumoKit.parseAndIndex(url: url)
@@ -170,6 +191,61 @@ let results = try await lumoKit.semanticSearch(
 for result in results {
     print(result.text)
 }
+```
+
+### Custom Embedder Examples
+
+LumoKit can also accept any embedder that conforms to `VecturaEmbedder`.
+
+#### Use `NLContextualEmbedder`
+
+```swift
+import LumoKit
+import VecturaKit
+import VecturaNLKit
+
+let embedder = try await NLContextualEmbedder(language: .english)
+let lumoKit = try await LumoKit(
+    config: vecturaConfig,
+    chunkingConfig: chunkingConfig,
+    embedder: embedder
+)
+```
+
+#### Use `OpenAICompatibleEmbedder`
+
+```swift
+import LumoKit
+import VecturaKit
+import VecturaOAIKit
+
+let embedder = OpenAICompatibleEmbedder(
+    baseURL: "https://api.openai.com/v1",
+    model: "text-embedding-3-small",
+    apiKey: "<api-key>"
+)
+
+let lumoKit = try await LumoKit(
+    config: vecturaConfig,
+    chunkingConfig: chunkingConfig,
+    embedder: embedder
+)
+```
+
+#### Use `MLXEmbedder`
+
+```swift
+import LumoKit
+import VecturaKit
+import VecturaMLXKit
+import MLXEmbedders
+
+let embedder = try await MLXEmbedder(configuration: .multilingual_e5_small)
+let lumoKit = try await LumoKit(
+    config: vecturaConfig,
+    chunkingConfig: chunkingConfig,
+    embedder: embedder
+)
 ```
 
 ## Chunking Strategies

@@ -5,6 +5,22 @@ import Foundation
 
 // MARK: - Public API Tests
 
+private actor MockEmbedder: VecturaEmbedder {
+    let dimension: Int = 2
+
+    func embed(texts: [String]) async throws -> [[Float]] {
+        texts.map(embedding(for:))
+    }
+
+    private func embedding(for text: String) -> [Float] {
+        let normalized = text.lowercased()
+        if normalized.contains("team") || normalized.contains("roadmap") || normalized.contains("q3") {
+            return [1, 0]
+        }
+        return [0, 1]
+    }
+}
+
 @Test("LumoKit public API")
 func testLumoKitPublicAPI() async throws {
     let config = try VecturaConfig(name: "test-db")
@@ -71,6 +87,46 @@ func testLumoKitCustomModelSource() async throws {
         threshold: 0.0
     )
     #expect(!results.isEmpty, "Should return search results when using a custom model source")
+
+    try await lumoKit.resetDB()
+}
+
+@Test("LumoKit supports custom embedder injection")
+func testLumoKitCustomEmbedder() async throws {
+    let storageDirectory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("lumo-custom-embedder-\(UUID().uuidString)", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: storageDirectory)
+    }
+
+    let config = try VecturaConfig(
+        name: "test-db-custom-embedder",
+        directoryURL: storageDirectory,
+        dimension: 2
+    )
+    let lumoKit = try await LumoKit(
+        config: config,
+        embedder: MockEmbedder()
+    )
+
+    let ids = try await lumoKit.addDocuments(texts: [
+        "Milk, eggs, and bread from the grocery store.",
+        "The team discussed the product roadmap and Q3 priorities."
+    ])
+
+    #expect(ids.count == 2, "Should index documents with a custom embedder")
+
+    let results = try await lumoKit.semanticSearch(
+        query: "What did the team discuss?",
+        numResults: 1,
+        threshold: 0.0
+    )
+
+    #expect(results.count == 1, "Should return a top match for the custom embedder")
+    #expect(
+        results.first?.text == "The team discussed the product roadmap and Q3 priorities.",
+        "Should surface the document preferred by the custom embedder"
+    )
 
     try await lumoKit.resetDB()
 }
