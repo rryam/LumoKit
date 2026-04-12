@@ -42,7 +42,17 @@ func testLumoKitPublicAPI() async throws {
 
 @Test("LumoKit supports custom embedding model selection")
 func testLumoKitCustomModelSource() async throws {
-    let config = try VecturaConfig(name: "test-db-custom-model")
+    let storageDirectory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("lumo-custom-model-\(UUID().uuidString)", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: storageDirectory)
+    }
+
+    let config = try VecturaConfig(
+        name: "test-db-custom-model",
+        directoryURL: storageDirectory,
+        dimension: 64
+    )
     let lumoKit = try await LumoKit(
         config: config,
         modelSource: .id("minishlab/potion-base-2M")

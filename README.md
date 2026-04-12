@@ -140,9 +140,18 @@ let lumoKit = try await LumoKit(
     chunkingConfig: chunkingConfig
 )
 
-// Optionally choose a specific embedding model
+// Optionally choose a specific embedding model.
+// Use a separate store when switching models so stored vector dimensions stay consistent.
+let customModelConfig = VecturaConfig(
+    name: "knowledge-base-retrieval",
+    searchOptions: .init(
+        defaultNumResults: 10,
+        minThreshold: 0.7
+    )
+)
+
 let customModelLumoKit = try await LumoKit(
-    config: vecturaConfig,
+    config: customModelConfig,
     chunkingConfig: chunkingConfig,
     modelSource: .id("minishlab/potion-retrieval-32M")
 )
