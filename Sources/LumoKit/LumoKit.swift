@@ -17,12 +17,35 @@ public final class LumoKit {
     ///   - chunkingConfig: Configuration for text chunking (uses defaults if not provided)
     ///   - modelSource: The embedding model source used by `SwiftEmbedder`
     /// - Throws: Errors from VecturaKit initialization
-    public init(
+    public convenience init(
         config: VecturaConfig,
         chunkingConfig: ChunkingConfig? = nil,
         modelSource: VecturaModelSource = .default
     ) async throws {
         let embedder = SwiftEmbedder(modelSource: modelSource)
+        try await self.init(
+            config: config,
+            chunkingConfig: chunkingConfig,
+            embedder: embedder
+        )
+    }
+
+    /// Initializes a new LumoKit instance with a custom Vectura embedder.
+    ///
+    /// This overload unlocks the full range of embedders supported by VecturaKit,
+    /// including `NLContextualEmbedder`, `OpenAICompatibleEmbedder`, `MLXEmbedder`,
+    /// and custom `VecturaEmbedder` implementations.
+    ///
+    /// - Parameters:
+    ///   - config: Configuration for the VecturaKit vector database
+    ///   - chunkingConfig: Configuration for text chunking (uses defaults if not provided)
+    ///   - embedder: The embedder used to generate vector embeddings
+    /// - Throws: Errors from VecturaKit initialization
+    public init(
+        config: VecturaConfig,
+        chunkingConfig: ChunkingConfig? = nil,
+        embedder: VecturaEmbedder
+    ) async throws {
         self.vectura = try await VecturaKit(config: config, embedder: embedder)
         self.defaultChunkingConfig = try chunkingConfig ?? ChunkingConfig()
     }
