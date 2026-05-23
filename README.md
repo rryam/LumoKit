@@ -1,15 +1,8 @@
 # LumoKit
 
-
 LumoKit is a Swift package for building on-device **Retrieval-Augmented Generation (RAG)** workflows. It combines **PicoDocs** for document ingestion with **VecturaKit** for vector storage and semantic search, giving you an end-to-end pipeline for creating searchable knowledge bases.
 
 The name **Lumo** blends the Mandarin characters **流** (*liú*, “flow”) and **模** (*mó*, “model”), representing the flow of knowledge into machine learning models.
-
-## Learn More
-
-Deepen your understanding of AI and iOS development with these books:
-- [Exploring AI for iOS Development](https://academy.rudrank.com/product/ai)
-- [Exploring AI-Assisted Coding for iOS Development](https://academy.rudrank.com/product/ai-assisted-coding)
 
 ## Table of Contents
 
