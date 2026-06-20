@@ -21,7 +21,11 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/rryam/VecturaKit.git",
-            branch: "main"
+            from: "6.0.0"
+        ),
+        .package(
+            url: "https://github.com/rryam/VecturaEmbeddingsKit.git",
+            from: "1.1.0"
         )
     ],
     targets: [
@@ -29,7 +33,8 @@ let package = Package(
             name: "LumoKit",
             dependencies: [
                 .product(name: "PicoDocs", package: "PicoDocs"),
-                .product(name: "VecturaKit", package: "VecturaKit")
+                .product(name: "VecturaKit", package: "VecturaKit"),
+                .product(name: "VecturaEmbeddingsKit", package: "VecturaEmbeddingsKit")
             ]),
         .testTarget(
             name: "LumoKitTests",
