@@ -95,7 +95,7 @@ Add LumoKit to your `Package.swift` using Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/rryam/LumoKit.git", from: "3.2.0")
+    .package(url: "https://github.com/rryam/LumoKit.git", from: "3.2.1")
 ]
 ```
 
@@ -115,6 +115,7 @@ Then attach the dependency to your target:
 ```swift
 import LumoKit
 import VecturaKit
+import VecturaEmbeddingsKit
 
 // Configure vector database
 let vecturaConfig = VecturaConfig(
