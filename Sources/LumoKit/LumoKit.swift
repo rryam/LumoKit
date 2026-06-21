@@ -1,5 +1,6 @@
 import PicoDocs
 import VecturaKit
+import VecturaEmbeddingsKit
 import Foundation
 
 /// Main entry point for LumoKit document parsing and semantic search.
