@@ -67,8 +67,14 @@ public final class LumoKit {
     ) async throws -> [UUID] {
         let chunks = try await parseDocument(from: url, chunkingConfig: chunkingConfig)
         let texts = chunks.map { $0.text }
-        let ids = try await vectura.addDocuments(texts: texts)
+        let ids = chunks.map { _ in UUID() }
         await chunkMetadataStore.store(chunks.map(\.metadata), for: ids)
+        do {
+            _ = try await vectura.addDocuments(texts: texts, ids: ids)
+        } catch {
+            await chunkMetadataStore.remove(ids: ids)
+            throw error
+        }
         return ids
     }
 
