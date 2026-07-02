@@ -63,6 +63,10 @@ func testLumoKitCustomModelSource() async throws {
     defer {
         try? FileManager.default.removeItem(at: storageDirectory)
     }
+    try FileManager.default.createDirectory(
+        at: storageDirectory,
+        withIntermediateDirectories: true
+    )
 
     let config = try VecturaConfig(
         name: "test-db-custom-model",
@@ -156,6 +160,45 @@ func testLumoKitSourceMetadata() async throws {
     }
 
     // Cleanup
+    try await lumoKit.resetDB()
+}
+
+@Test("LumoKit preserves chunk metadata when indexing documents")
+func testLumoKitIndexedChunkMetadata() async throws {
+    let storageDirectory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("lumo-indexed-metadata-\(UUID().uuidString)", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: storageDirectory)
+    }
+
+    let config = try VecturaConfig(
+        name: "test-db-indexed-metadata",
+        directoryURL: storageDirectory,
+        dimension: 2
+    )
+    let lumoKit = try await LumoKit(
+        config: config,
+        chunkingConfig: ChunkingConfig(chunkSize: 200, strategy: .sentence),
+        embedder: MockEmbedder()
+    )
+
+    let testFile = storageDirectory.appendingPathComponent("meeting-notes.txt")
+    try "The team discussed the product roadmap and Q3 priorities."
+        .write(to: testFile, atomically: true, encoding: .utf8)
+
+    let ids = try await lumoKit.parseAndIndex(url: testFile)
+    let results = try await lumoKit.semanticSearchChunks(
+        query: "What did the team discuss?",
+        numResults: 1,
+        threshold: 0.0
+    )
+
+    #expect(ids.count == 1)
+    #expect(results.count == 1)
+    #expect(results[0].id == ids[0])
+    #expect(results[0].metadata?.source == "meeting-notes.txt")
+    #expect(results[0].metadata?.index == 0)
+
     try await lumoKit.resetDB()
 }
 

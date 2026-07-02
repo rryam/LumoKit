@@ -10,6 +10,7 @@ import Foundation
 public final class LumoKit {
     private let vectura: VecturaKit
     private let defaultChunkingConfig: ChunkingConfig
+    private let chunkMetadataStore = IndexedChunkMetadataStore()
 
     /// Initializes a new LumoKit instance.
     ///
@@ -64,9 +65,11 @@ public final class LumoKit {
         url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws -> [UUID] {
-        let chunks = try await parseChunks(from: url, chunkingConfig: chunkingConfig)
+        let chunks = try await parseDocument(from: url, chunkingConfig: chunkingConfig)
         let texts = chunks.map { $0.text }
-        return try await vectura.addDocuments(texts: texts)
+        let ids = try await vectura.addDocuments(texts: texts)
+        await chunkMetadataStore.store(chunks.map(\.metadata), for: ids)
+        return ids
     }
 
     /// Parse a document from a file and return chunks with metadata.
@@ -219,6 +222,31 @@ public final class LumoKit {
         return try await vectura.search(query: .text(query), numResults: numResults, threshold: threshold)
     }
 
+    /// Search for indexed chunks and return any metadata captured during `parseAndIndex`.
+    ///
+    /// Raw documents added with `addDocuments(texts:)` do not have chunk metadata.
+    public func semanticSearchChunks(
+        query: String,
+        numResults: Int = 5,
+        threshold: Float = 0.7
+    ) async throws -> [LumoSearchResult] {
+        let results = try await semanticSearch(
+            query: query,
+            numResults: numResults,
+            threshold: threshold
+        )
+        let metadataByID = await chunkMetadataStore.metadata(for: results.map(\.id))
+        return results.map { result in
+            LumoSearchResult(
+                id: result.id,
+                text: result.text,
+                score: result.score,
+                createdAt: result.createdAt,
+                metadata: metadataByID[result.id]
+            )
+        }
+    }
+
     /// Clears all indexed documents from the vector database.
     ///
     /// Use this method to remove all indexed content when you need to
@@ -227,6 +255,7 @@ public final class LumoKit {
     /// - Throws: `LumoKitError.databaseError` if the reset fails
     public func resetDB() async throws {
         try await vectura.reset()
+        await chunkMetadataStore.removeAll()
     }
 
     /// Add raw text documents to the vector database
@@ -249,6 +278,7 @@ public final class LumoKit {
     /// - Throws: Errors from VecturaKit
     public func deleteChunks(ids: [UUID]) async throws {
         try await vectura.deleteDocuments(ids: ids)
+        await chunkMetadataStore.remove(ids: ids)
     }
 
     /// Returns the total number of indexed documents
@@ -256,6 +286,43 @@ public final class LumoKit {
     /// - Returns: The count of documents in the vector database
     public func documentCount() async throws -> Int {
         try await vectura.documentCount
+    }
+}
+
+public struct LumoSearchResult: Identifiable, Sendable {
+    public let id: UUID
+    public let text: String
+    public let score: Float
+    public let createdAt: Date
+    public let metadata: ChunkMetadata?
+}
+
+private actor IndexedChunkMetadataStore {
+    private var metadataByID: [UUID: ChunkMetadata] = [:]
+
+    func store(_ metadata: [ChunkMetadata], for ids: [UUID]) {
+        for (id, chunkMetadata) in zip(ids, metadata) {
+            metadataByID[id] = chunkMetadata
+        }
+    }
+
+    func metadata(for ids: [UUID]) -> [UUID: ChunkMetadata] {
+        var result: [UUID: ChunkMetadata] = [:]
+        result.reserveCapacity(ids.count)
+        for id in ids {
+            result[id] = metadataByID[id]
+        }
+        return result
+    }
+
+    func remove(ids: [UUID]) {
+        for id in ids {
+            metadataByID.removeValue(forKey: id)
+        }
+    }
+
+    func removeAll() {
+        metadataByID.removeAll()
     }
 }
 
