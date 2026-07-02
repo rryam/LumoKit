@@ -10,6 +10,7 @@ import Foundation
 public final class LumoKit {
     private let vectura: VecturaKit
     private let defaultChunkingConfig: ChunkingConfig
+    private let chunkMetadataStore: IndexedChunkMetadataStore
 
     /// Initializes a new LumoKit instance.
     ///
@@ -47,8 +48,11 @@ public final class LumoKit {
         chunkingConfig: ChunkingConfig? = nil,
         embedder: VecturaEmbedder
     ) async throws {
-        self.vectura = try await VecturaKit(config: config, embedder: embedder)
         self.defaultChunkingConfig = try chunkingConfig ?? ChunkingConfig()
+        self.chunkMetadataStore = try IndexedChunkMetadataStore(
+            storageDirectory: Self.metadataStorageDirectory(config: config)
+        )
+        self.vectura = try await VecturaKit(config: config, embedder: embedder)
     }
 
     /// Parse and index a document from a given file URL
@@ -64,9 +68,18 @@ public final class LumoKit {
         url: URL,
         chunkingConfig: ChunkingConfig? = nil
     ) async throws -> [UUID] {
-        let chunks = try await parseChunks(from: url, chunkingConfig: chunkingConfig)
+        let chunks = try await parseDocument(from: url, chunkingConfig: chunkingConfig)
         let texts = chunks.map { $0.text }
-        return try await vectura.addDocuments(texts: texts)
+        let ids = chunks.map { _ in UUID() }
+        try await chunkMetadataStore.store(chunks.map(\.metadata), for: ids)
+        do {
+            _ = try await vectura.addDocuments(texts: texts, ids: ids)
+        } catch {
+            let indexingError = error
+            await chunkMetadataStore.remove(ids: ids)
+            throw indexingError
+        }
+        return ids
     }
 
     /// Parse a document from a file and return chunks with metadata.
@@ -219,6 +232,31 @@ public final class LumoKit {
         return try await vectura.search(query: .text(query), numResults: numResults, threshold: threshold)
     }
 
+    /// Search for indexed chunks and return any metadata captured during `parseAndIndex`.
+    ///
+    /// Raw documents added with `addDocuments(texts:)` do not have chunk metadata.
+    public func semanticSearchChunks(
+        query: String,
+        numResults: Int = 5,
+        threshold: Float = 0.7
+    ) async throws -> [LumoSearchResult] {
+        let results = try await semanticSearch(
+            query: query,
+            numResults: numResults,
+            threshold: threshold
+        )
+        let metadataByID = try await chunkMetadataStore.metadata(for: results.map(\.id))
+        return results.map { result in
+            LumoSearchResult(
+                id: result.id,
+                text: result.text,
+                score: result.score,
+                createdAt: result.createdAt,
+                metadata: metadataByID[result.id]
+            )
+        }
+    }
+
     /// Clears all indexed documents from the vector database.
     ///
     /// Use this method to remove all indexed content when you need to
@@ -227,6 +265,7 @@ public final class LumoKit {
     /// - Throws: `LumoKitError.databaseError` if the reset fails
     public func resetDB() async throws {
         try await vectura.reset()
+        await chunkMetadataStore.removeAll()
     }
 
     /// Add raw text documents to the vector database
@@ -249,6 +288,7 @@ public final class LumoKit {
     /// - Throws: Errors from VecturaKit
     public func deleteChunks(ids: [UUID]) async throws {
         try await vectura.deleteDocuments(ids: ids)
+        await chunkMetadataStore.remove(ids: ids)
     }
 
     /// Returns the total number of indexed documents
@@ -256,6 +296,86 @@ public final class LumoKit {
     /// - Returns: The count of documents in the vector database
     public func documentCount() async throws -> Int {
         try await vectura.documentCount
+    }
+
+    private static func metadataStorageDirectory(config: VecturaConfig) throws -> URL {
+        if let customStorageDirectory = config.directoryURL {
+            return customStorageDirectory.appendingPathComponent(config.name, isDirectory: true)
+        }
+
+        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw LumoKitError.metadataStoreUnavailable
+        }
+
+        return documentsURL
+            .appendingPathComponent("VecturaKit", isDirectory: true)
+            .appendingPathComponent(config.name, isDirectory: true)
+    }
+}
+
+public struct LumoSearchResult: Identifiable, Sendable {
+    public let id: UUID
+    public let text: String
+    public let score: Float
+    public let createdAt: Date
+    public let metadata: ChunkMetadata?
+}
+
+private actor IndexedChunkMetadataStore {
+    private let directoryURL: URL
+
+    init(storageDirectory: URL) throws {
+        self.directoryURL = storageDirectory
+            .appendingPathComponent(".lumokit", isDirectory: true)
+            .appendingPathComponent("chunks", isDirectory: true)
+    }
+
+    func store(_ metadata: [ChunkMetadata], for ids: [UUID]) throws {
+        try FileManager.default.createDirectory(
+            at: directoryURL,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+
+        var writtenIDs: [UUID] = []
+        do {
+            for (id, chunkMetadata) in zip(ids, metadata) {
+                let data = try JSONEncoder().encode(chunkMetadata)
+                try data.write(to: fileURL(for: id), options: .atomic)
+                writtenIDs.append(id)
+            }
+        } catch {
+            remove(ids: writtenIDs)
+            throw error
+        }
+    }
+
+    func metadata(for ids: [UUID]) throws -> [UUID: ChunkMetadata] {
+        var result: [UUID: ChunkMetadata] = [:]
+        result.reserveCapacity(ids.count)
+        for id in ids {
+            let fileURL = fileURL(for: id)
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                continue
+            }
+            let data = try Data(contentsOf: fileURL)
+            result[id] = try JSONDecoder().decode(ChunkMetadata.self, from: data)
+        }
+        return result
+    }
+
+    func remove(ids: [UUID]) {
+        for id in ids {
+            try? FileManager.default.removeItem(at: fileURL(for: id))
+        }
+    }
+
+    func removeAll() {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+
+    private func fileURL(for id: UUID) -> URL {
+        directoryURL.appendingPathComponent("\(id.uuidString).json", isDirectory: false)
     }
 }
 
@@ -283,6 +403,9 @@ public enum LumoKitError: Error, Equatable {
     /// - underlyingError: The underlying error that caused the failure
     case chunkingFailed(strategy: String, underlyingError: Error)
 
+    /// Thrown when LumoKit cannot resolve where to store indexed chunk metadata.
+    case metadataStoreUnavailable
+
     public static func == (lhs: LumoKitError, rhs: LumoKitError) -> Bool {
         switch (lhs, rhs) {
         case (.emptyDocument, .emptyDocument),
@@ -290,7 +413,8 @@ public enum LumoKitError: Error, Equatable {
              (.invalidURL, .invalidURL),
              (.fileNotFound, .fileNotFound),
              (.unsupportedFileType, .unsupportedFileType),
-             (.invalidSearchParameters, .invalidSearchParameters):
+             (.invalidSearchParameters, .invalidSearchParameters),
+             (.metadataStoreUnavailable, .metadataStoreUnavailable):
             return true
         case (.chunkingFailed(let lhsStrategy, _), .chunkingFailed(let rhsStrategy, _)):
             return lhsStrategy == rhsStrategy

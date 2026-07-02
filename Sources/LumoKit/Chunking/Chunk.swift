@@ -15,7 +15,7 @@ public struct Chunk: Sendable {
 }
 
 /// Metadata associated with a text chunk
-public struct ChunkMetadata: Sendable {
+public struct ChunkMetadata: Codable, Sendable {
     /// The index of this chunk in the sequence
     public let index: Int
 
