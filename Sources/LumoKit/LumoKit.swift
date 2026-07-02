@@ -75,8 +75,9 @@ public final class LumoKit {
         do {
             _ = try await vectura.addDocuments(texts: texts, ids: ids)
         } catch {
-            try? await chunkMetadataStore.remove(ids: ids)
-            throw error
+            let indexingError = error
+            try await chunkMetadataStore.remove(ids: ids)
+            throw indexingError
         }
         return ids
     }
@@ -335,10 +336,12 @@ private actor IndexedChunkMetadataStore {
     }
 
     func store(_ metadata: [ChunkMetadata], for ids: [UUID]) throws {
+        var updatedMetadata = metadataByID
         for (id, chunkMetadata) in zip(ids, metadata) {
-            metadataByID[id] = chunkMetadata
+            updatedMetadata[id] = chunkMetadata
         }
-        try persist()
+        try persist(updatedMetadata)
+        metadataByID = updatedMetadata
     }
 
     func metadata(for ids: [UUID]) -> [UUID: ChunkMetadata] {
@@ -351,25 +354,27 @@ private actor IndexedChunkMetadataStore {
     }
 
     func remove(ids: [UUID]) throws {
+        var updatedMetadata = metadataByID
         for id in ids {
-            metadataByID.removeValue(forKey: id)
+            updatedMetadata.removeValue(forKey: id)
         }
-        try persist()
+        try persist(updatedMetadata)
+        metadataByID = updatedMetadata
     }
 
     func removeAll() throws {
+        try persist([:])
         metadataByID.removeAll()
-        try persist()
     }
 
-    private func persist() throws {
+    private func persist(_ metadata: [UUID: ChunkMetadata]) throws {
         let directoryURL = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
-        let data = try JSONEncoder().encode(metadataByID)
+        let data = try JSONEncoder().encode(metadata)
         try data.write(to: fileURL, options: .atomic)
     }
 }
