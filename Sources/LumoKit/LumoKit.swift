@@ -76,7 +76,7 @@ public final class LumoKit {
             _ = try await vectura.addDocuments(texts: texts, ids: ids)
         } catch {
             let indexingError = error
-            try await chunkMetadataStore.remove(ids: ids)
+            await chunkMetadataStore.remove(ids: ids)
             throw indexingError
         }
         return ids
@@ -245,7 +245,7 @@ public final class LumoKit {
             numResults: numResults,
             threshold: threshold
         )
-        let metadataByID = await chunkMetadataStore.metadata(for: results.map(\.id))
+        let metadataByID = try await chunkMetadataStore.metadata(for: results.map(\.id))
         return results.map { result in
             LumoSearchResult(
                 id: result.id,
@@ -265,7 +265,7 @@ public final class LumoKit {
     /// - Throws: `LumoKitError.databaseError` if the reset fails
     public func resetDB() async throws {
         try await vectura.reset()
-        try await chunkMetadataStore.removeAll()
+        await chunkMetadataStore.removeAll()
     }
 
     /// Add raw text documents to the vector database
@@ -288,7 +288,7 @@ public final class LumoKit {
     /// - Throws: Errors from VecturaKit
     public func deleteChunks(ids: [UUID]) async throws {
         try await vectura.deleteDocuments(ids: ids)
-        try await chunkMetadataStore.remove(ids: ids)
+        await chunkMetadataStore.remove(ids: ids)
     }
 
     /// Returns the total number of indexed documents
@@ -322,60 +322,60 @@ public struct LumoSearchResult: Identifiable, Sendable {
 }
 
 private actor IndexedChunkMetadataStore {
-    private let fileURL: URL
-    private var metadataByID: [UUID: ChunkMetadata] = [:]
+    private let directoryURL: URL
 
     init(storageDirectory: URL) throws {
-        self.fileURL = storageDirectory
+        self.directoryURL = storageDirectory
             .appendingPathComponent(".lumokit", isDirectory: true)
-            .appendingPathComponent("chunk-metadata.json", isDirectory: false)
-
-        if let data = try? Data(contentsOf: fileURL) {
-            metadataByID = (try? JSONDecoder().decode([UUID: ChunkMetadata].self, from: data)) ?? [:]
-        }
+            .appendingPathComponent("chunks", isDirectory: true)
     }
 
     func store(_ metadata: [ChunkMetadata], for ids: [UUID]) throws {
-        var updatedMetadata = metadataByID
-        for (id, chunkMetadata) in zip(ids, metadata) {
-            updatedMetadata[id] = chunkMetadata
-        }
-        try persist(updatedMetadata)
-        metadataByID = updatedMetadata
-    }
-
-    func metadata(for ids: [UUID]) -> [UUID: ChunkMetadata] {
-        var result: [UUID: ChunkMetadata] = [:]
-        result.reserveCapacity(ids.count)
-        for id in ids {
-            result[id] = metadataByID[id]
-        }
-        return result
-    }
-
-    func remove(ids: [UUID]) throws {
-        var updatedMetadata = metadataByID
-        for id in ids {
-            updatedMetadata.removeValue(forKey: id)
-        }
-        try persist(updatedMetadata)
-        metadataByID = updatedMetadata
-    }
-
-    func removeAll() throws {
-        try persist([:])
-        metadataByID.removeAll()
-    }
-
-    private func persist(_ metadata: [UUID: ChunkMetadata]) throws {
-        let directoryURL = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
-        let data = try JSONEncoder().encode(metadata)
-        try data.write(to: fileURL, options: .atomic)
+
+        var writtenIDs: [UUID] = []
+        do {
+            for (id, chunkMetadata) in zip(ids, metadata) {
+                let data = try JSONEncoder().encode(chunkMetadata)
+                try data.write(to: fileURL(for: id), options: .atomic)
+                writtenIDs.append(id)
+            }
+        } catch {
+            remove(ids: writtenIDs)
+            throw error
+        }
+    }
+
+    func metadata(for ids: [UUID]) throws -> [UUID: ChunkMetadata] {
+        var result: [UUID: ChunkMetadata] = [:]
+        result.reserveCapacity(ids.count)
+        for id in ids {
+            let fileURL = fileURL(for: id)
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                continue
+            }
+            let data = try Data(contentsOf: fileURL)
+            result[id] = try JSONDecoder().decode(ChunkMetadata.self, from: data)
+        }
+        return result
+    }
+
+    func remove(ids: [UUID]) {
+        for id in ids {
+            try? FileManager.default.removeItem(at: fileURL(for: id))
+        }
+    }
+
+    func removeAll() {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+
+    private func fileURL(for id: UUID) -> URL {
+        directoryURL.appendingPathComponent("\(id.uuidString).json", isDirectory: false)
     }
 }
 
