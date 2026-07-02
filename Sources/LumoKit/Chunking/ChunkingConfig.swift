@@ -52,7 +52,7 @@ public enum ChunkingStrategyType {
 }
 
 /// Content type hints for specialized chunking
-public enum ContentType: Sendable {
+public enum ContentType: String, Codable, Sendable {
     /// Regular prose text
     case prose
 

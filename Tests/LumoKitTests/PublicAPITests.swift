@@ -199,7 +199,23 @@ func testLumoKitIndexedChunkMetadata() async throws {
     #expect(results[0].metadata?.source == "meeting-notes.txt")
     #expect(results[0].metadata?.index == 0)
 
-    try await lumoKit.resetDB()
+    let reloadedLumoKit = try await LumoKit(
+        config: config,
+        chunkingConfig: ChunkingConfig(chunkSize: 200, strategy: .sentence),
+        embedder: MockEmbedder()
+    )
+    let reloadedResults = try await reloadedLumoKit.semanticSearchChunks(
+        query: "What did the team discuss?",
+        numResults: 1,
+        threshold: 0.0
+    )
+
+    #expect(reloadedResults.count == 1)
+    #expect(reloadedResults[0].id == ids[0])
+    #expect(reloadedResults[0].metadata?.source == "meeting-notes.txt")
+    #expect(reloadedResults[0].metadata?.index == 0)
+
+    try await reloadedLumoKit.resetDB()
 }
 
 @Test("LumoKit search parameter validation")
