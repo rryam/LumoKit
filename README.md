@@ -95,7 +95,7 @@ Add LumoKit to your `Package.swift` using Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/rryam/LumoKit.git", from: "3.2.1")
+    .package(url: "https://github.com/rryam/LumoKit.git", from: "3.3.0")
 ]
 ```
 
@@ -377,6 +377,20 @@ let chunkIDs = try await lumoKit.parseAndIndex(url: url)
 
 // Later, when the document is deleted in your app
 try await lumoKit.deleteChunks(ids: chunkIDs)
+```
+
+### Search Indexed Chunks with Metadata
+
+`parseAndIndex` now persists each chunk's source metadata. Use `semanticSearchChunks`
+when search results need their original positions, content type, or source URL:
+
+```swift
+let results = try await lumoKit.semanticSearchChunks(query: "release process")
+
+for result in results {
+    print(result.text)
+    print(result.metadata?.source ?? "unknown source")
+}
 ```
 
 ### Custom Storage Location
