@@ -473,5 +473,3 @@ Contributions are welcome! Open an issue or submit a pull request with improveme
 ## License
 
 LumoKit is available under the MIT license. See the [LICENSE](LICENSE) file for details.
-
-[![Star History Chart](https://api.star-history.com/svg?repos=rryam/LumoKit&type=Date)](https://star-history.com/#rryam/LumoKit&Date)
